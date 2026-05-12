@@ -20,7 +20,7 @@ class Group(db.Model):
         return self.token_budget - self.tokens_used
 
     def increment_tokens(self, count):
-        self.tokens_used += count
+        self.tokens_used = min(self.tokens_used + count, self.token_budget)
 
 
 class Conversation(db.Model):
@@ -40,5 +40,5 @@ class Message(db.Model):
     conversation_id = db.Column(db.Integer, db.ForeignKey('conversations.id'), nullable=False)
     role = db.Column(db.String(20), nullable=False)
     content = db.Column(db.Text, nullable=False)
-    tokens_used = db.Column(db.Integer, default=0)
+    tokens_used = db.Column(db.Integer, default=0, nullable=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))

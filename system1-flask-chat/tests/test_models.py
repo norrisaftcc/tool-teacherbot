@@ -50,3 +50,15 @@ def test_group_increment_tokens(app):
         db.session.commit()
         assert g.tokens_used == 500
         assert g.tokens_remaining == 99500
+
+def test_group_tokens_cannot_exceed_budget(app):
+    with app.app_context():
+        from models import db
+        db.create_all()
+        g = Group(name='group5', clearance_level='ORANGE', token_budget=100)
+        db.session.add(g)
+        db.session.commit()
+        g.increment_tokens(150)  # exceeds budget
+        db.session.commit()
+        assert g.tokens_used == 100      # clamped at budget
+        assert g.tokens_remaining == 0   # never goes negative
