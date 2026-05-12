@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}AlgoCratic TA{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Bungee+Shade&family=Bungee+Inline&family=Yellowtail&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/colors_and_type.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/kit.css') }}">
+</head>
+<body>
+  <div class="app">
+    <div class="classification-banner">&#11035; AMBER CLEARANCE — TEACHERBOT SYSTEM 1 — AUTHORIZED PERSONNEL ONLY &#11035;</div>
+    <header class="masthead">
+      <div class="masthead__brand">
+        <div class="masthead__mark">
+          <img src="{{ url_for('static', filename='af-a-eye.svg') }}" alt="AlgoCratic" style="width:28px;height:22px;filter:invert(1) sepia(1) saturate(3) hue-rotate(10deg) brightness(0.9);">
+        </div>
+        <div class="masthead__brand-text">
+          TEACHERBOT <span style="color:var(--amber);">·</span> SYSTEM 1
+          <small>ALGOCRATIC FUTURES™ · TA SHARED INTERFACE</small>
+        </div>
+      </div>
+      <nav class="masthead__breadcrumb">
+        {% block breadcrumb %}
+        <span>PORTAL</span><span class="sep">/</span>
+        <span>TA SYSTEMS</span><span class="sep">/</span>
+        <span>SYSTEM 1</span>
+        {% endblock %}
+      </nav>
+      <div class="masthead__right">
+        {% block masthead_right %}{% endblock %}
+      </div>
+    </header>
+    <div class="main">
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

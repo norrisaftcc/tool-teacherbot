@@ -1,11 +1,32 @@
-<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="UTF-8"><title>Admin Login — AlgoCratic TA</title></head>
-<body>
-  <h1>Admin Access</h1>
-  <form method="get" action="/admin">
-    <input type="password" name="password" placeholder="Admin password" required>
-    <button type="submit">Enter</button>
-  </form>
-</body>
-</html>
+{% extends "base.html" %}
+{% block title %}Admin Access — AlgoCratic TA{% endblock %}
+
+{% block breadcrumb %}
+<span>PORTAL</span><span class="sep">/</span>
+<span>TA SYSTEMS</span><span class="sep">/</span>
+<span>SYSTEM 1</span><span class="sep">/</span>
+<span class="now">ADMIN ACCESS</span>
+{% endblock %}
+
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:center;height:100%;flex:1;">
+  <div style="width:360px;">
+    <div class="eyebrow" style="text-align:center;margin-bottom:var(--space-3);">DOCUMENT: AF-ADMIN-AUTH-2026</div>
+    <h1 style="text-align:center;font-size:var(--text-2xl);margin-bottom:var(--space-2);">INSTRUCTOR</h1>
+    <p class="display-script" style="text-align:center;font-size:var(--text-xl);margin-bottom:var(--space-5);">access</p>
+
+    <div style="background:var(--teal-tint);border:1px solid var(--teal);color:var(--teal);padding:var(--space-2) var(--space-3);margin-bottom:var(--space-4);font-family:var(--font-mono);font-size:var(--text-xs);letter-spacing:0.06em;">
+      &#9650; RESTRICTED ZONE · INSTRUCTOR CREDENTIALS REQUIRED
+    </div>
+
+    <form method="get" action="/admin" style="display:flex;flex-direction:column;gap:var(--space-3);">
+      <div>
+        <label class="label" style="display:block;margin-bottom:var(--space-1);">Admin Password</label>
+        <input type="password" name="password" placeholder="••••••••" required style="width:100%;box-sizing:border-box;">
+      </div>
+      <button type="submit" class="btn btn--primary" style="width:100%;margin-top:var(--space-2);">Access Dashboard</button>
+    </form>
+    <p class="fine-print" style="text-align:center;margin-top:var(--space-5);">All access attempts are logged. The Algorithm observes your observation.</p>
+  </div>
+</div>
+{% endblock %}

@@ -1,15 +1,101 @@
-<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="UTF-8"><title>Admin — AlgoCratic TA</title></head>
-<body>
-  <h1>Admin Dashboard</h1>
-  <h2>Groups</h2>
-  {% for group in groups %}
-    <p>{{ group.name }} | {{ group.clearance_level }} | {{ group.tokens_used }}/{{ group.token_budget }}</p>
-  {% endfor %}
-  <h2>Recent Conversations</h2>
-  {% for conv in conversations %}
-    <p>Group {{ conv.group_id }} @ {{ conv.started_at }}</p>
-  {% endfor %}
-</body>
-</html>
+{% extends "base.html" %}
+{% block title %}Admin Dashboard — AlgoCratic TA{% endblock %}
+
+{% block breadcrumb %}
+<span>PORTAL</span><span class="sep">/</span>
+<span>TA SYSTEMS</span><span class="sep">/</span>
+<span>SYSTEM 1</span><span class="sep">/</span>
+<span class="now">ADMIN</span>
+{% endblock %}
+
+{% block masthead_right %}
+<span class="pill pill--instructor">
+  <span class="pill__dot"></span>INSTRUCTOR
+</span>
+{% endblock %}
+
+{% block content %}
+<div style="flex:1;overflow-y:auto;padding:var(--space-6) var(--space-6);min-height:0;">
+
+  <div class="eyebrow" style="margin-bottom:var(--space-3);">DOCUMENT: AF-ADMIN-2026</div>
+  <h1 style="font-size:var(--text-2xl);margin-bottom:var(--space-5);">INSTRUCTOR DASHBOARD</h1>
+
+  <!-- Groups section -->
+  <h2 style="font-family:var(--font-mono);font-size:var(--text-sm);font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--cream-muted);margin-bottom:var(--space-4);border-bottom:1px solid var(--ink-muted);padding-bottom:var(--space-2);">
+    COHORT GROUPS · {{ groups | length }} TOTAL
+  </h2>
+
+  {% if groups %}
+  <ul class="group-list" style="margin-bottom:var(--space-7);">
+    {% for group in groups %}
+    {% set pct = [[(group.tokens_used / group.token_budget * 100) | int, 0] | max, 100] | min %}
+    {% set bar_color = 'var(--rust)' if pct > 85 else ('var(--mustard)' if pct > 65 else 'var(--moss)') %}
+    <button class="group-row" style="cursor:default;">
+      <div class="group-row__head">
+        <span class="group-row__name">{{ group.name | upper }}</span>
+        <span class="group-row__clearance clearance--{{ group.clearance_level | lower }}">
+          &#9679; {{ group.clearance_level | upper }}
+        </span>
+      </div>
+      <div class="group-row__alias" style="font-family:var(--font-mono);font-size:11px;">
+        Tokens: {{ group.tokens_used | int | string }} / {{ group.token_budget | int | string }}
+        &nbsp;·&nbsp;Remaining: <span style="color:{{ 'var(--rust)' if group.tokens_remaining <= 0 else 'var(--moss)' }};font-weight:700;">{{ group.tokens_remaining | int | string }}</span>
+      </div>
+      <div class="mini-meter">
+        <span>T</span>
+        <div class="mini-meter__bar">
+          <div class="mini-meter__fill" style="width:{{ pct }}%;background:{{ bar_color }};"></div>
+        </div>
+        <span class="mini-meter__val">{{ pct }}%</span>
+      </div>
+    </button>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <div style="font-family:var(--font-mono);font-size:var(--text-sm);color:var(--cream-muted);margin-bottom:var(--space-7);padding:var(--space-4);border:1px dashed var(--ink-muted);">
+    No groups have authenticated yet. Groups appear here after first login.
+  </div>
+  {% endif %}
+
+  <!-- Recent conversations section -->
+  <h2 style="font-family:var(--font-mono);font-size:var(--text-sm);font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--cream-muted);margin-bottom:var(--space-4);border-bottom:1px solid var(--ink-muted);padding-bottom:var(--space-2);">
+    RECENT CONVERSATIONS · LAST 50
+  </h2>
+
+  {% if conversations %}
+  <div style="display:flex;flex-direction:column;gap:var(--space-3);">
+    {% for conv in conversations %}
+    <div style="background:var(--ink-raised);border:1px solid var(--ink-muted);border-left:3px solid var(--amber);padding:var(--space-3) var(--space-4);">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:var(--space-2);">
+        <span style="font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--amber);letter-spacing:0.08em;text-transform:uppercase;">
+          GROUP: {{ conv.group.name | upper if conv.group else 'UNKNOWN' }}
+        </span>
+        <span style="font-family:var(--font-mono);font-size:10px;color:var(--cream-muted);letter-spacing:0.06em;">
+          {{ conv.started_at.strftime('%Y-%m-%d %H:%M UTC') if conv.started_at else '—' }}
+        </span>
+      </div>
+      <div style="font-family:var(--font-mono);font-size:10px;color:var(--cream-muted);letter-spacing:0.06em;">
+        {% set msg_count = conv.messages | length %}
+        {{ msg_count }} message{{ 's' if msg_count != 1 else '' }}
+        {% if conv.messages %}
+        &nbsp;·&nbsp;
+        {% set last_user = namespace(msg=None) %}
+        {% for m in conv.messages %}
+          {% if m.role == 'user' %}{% set last_user.msg = m %}{% endif %}
+        {% endfor %}
+        {% if last_user.msg %}
+        Last: <span style="color:var(--cream-soft);">"{{ last_user.msg.content[:80] }}{% if last_user.msg.content | length > 80 %}…{% endif %}"</span>
+        {% endif %}
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div style="font-family:var(--font-mono);font-size:var(--text-sm);color:var(--cream-muted);padding:var(--space-4);border:1px dashed var(--ink-muted);">
+    No conversations recorded yet.
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

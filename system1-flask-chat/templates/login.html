@@ -1,17 +1,31 @@
-<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="UTF-8"><title>Login — AlgoCratic TA</title></head>
-<body>
-  {% with messages = get_flashed_messages() %}
-    {% if messages %}
-      {% for msg in messages %}<p>{{ msg }}</p>{% endfor %}
-    {% endif %}
-  {% endwith %}
-  <h1>Login</h1>
-  <form method="post" action="/login">
-    <input type="text" name="group_id" placeholder="Group ID" required>
-    <input type="password" name="password" placeholder="Password" required>
-    <button type="submit">Enter</button>
-  </form>
-</body>
-</html>
+{% extends "base.html" %}
+{% block title %}Login — AlgoCratic TA{% endblock %}
+
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:center;height:100%;flex:1;">
+  <div style="width:360px;">
+    <div class="eyebrow" style="text-align:center;margin-bottom:var(--space-3);">DOCUMENT: AF-AUTH-2026</div>
+    <h1 style="text-align:center;font-size:var(--text-2xl);margin-bottom:var(--space-2);">IDENTIFY</h1>
+    <p class="display-script" style="text-align:center;font-size:var(--text-xl);margin-bottom:var(--space-5);">yourself</p>
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        {% for msg in messages %}
+          <div style="background:var(--rust-tint);border:1px solid var(--rust);color:var(--rust);padding:var(--space-2) var(--space-3);margin-bottom:var(--space-4);font-family:var(--font-mono);font-size:var(--text-sm);">{{ msg }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+    <form method="post" action="/login" style="display:flex;flex-direction:column;gap:var(--space-3);">
+      <div>
+        <label class="label" style="display:block;margin-bottom:var(--space-1);">Group ID</label>
+        <input type="text" name="group_id" placeholder="group1" required style="width:100%;box-sizing:border-box;">
+      </div>
+      <div>
+        <label class="label" style="display:block;margin-bottom:var(--space-1);">Passphrase</label>
+        <input type="password" name="password" placeholder="••••••••" required style="width:100%;box-sizing:border-box;">
+      </div>
+      <button type="submit" class="btn btn--primary" style="width:100%;margin-top:var(--space-2);">Authenticate</button>
+    </form>
+    <p class="fine-print" style="text-align:center;margin-top:var(--space-5);">The Algorithm is watching. Unauthorized access will be logged.</p>
+  </div>
+</div>
+{% endblock %}
