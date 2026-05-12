@@ -1,6 +1,7 @@
-from flask import Blueprint, render_template, redirect, url_for, session, request, flash, jsonify, current_app
+import json
+from flask import Blueprint, render_template, redirect, url_for, session, request, flash, jsonify, current_app, Response, stream_with_context
 from functools import wraps
-from claude_handler import get_claude_response
+from claude_handler import get_claude_response, stream_claude_response
 
 main = Blueprint('main', __name__)
 
@@ -115,6 +116,71 @@ def api_chat():
         'response': response_text,
         'tokens_remaining': group.tokens_remaining if group else None,
     })
+
+
+@main.route('/api/chat/stream', methods=['POST'])
+@group_login_required
+def api_chat_stream():
+    from models import db, Group, Conversation, Message
+
+    data = request.get_json()
+    user_message = (data.get('message') or '').strip()
+    history = data.get('history') or []
+
+    if not user_message:
+        return jsonify({'error': 'Empty message'}), 400
+
+    group = Group.query.filter_by(name=session['group_id']).first()
+    if group and group.tokens_remaining <= 0:
+        return jsonify({'error': 'Token budget exhausted. Contact your instructor.'}), 403
+
+    group_context = session['group_context']
+    group_id = session['group_id']
+
+    def generate():
+        full_text = ''
+        total_tokens = 0
+        try:
+            for chunk, tokens in stream_claude_response(group_context, history, user_message):
+                if chunk:
+                    full_text += chunk
+                    yield f'data: {json.dumps({"chunk": chunk})}\n\n'
+                elif tokens:
+                    total_tokens = tokens
+        except RuntimeError as e:
+            yield f'data: {json.dumps({"error": str(e)})}\n\n'
+            return
+
+        # Log to DB after streaming completes — failure must not surface to client
+        try:
+            g = Group.query.filter_by(name=group_id).first()
+            if g:
+                conv = (Conversation.query
+                        .filter_by(group_id=g.id)
+                        .order_by(Conversation.started_at.desc())
+                        .first())
+                if not conv or not history:
+                    conv = Conversation(group_id=g.id)
+                    db.session.add(conv)
+                    db.session.flush()
+                db.session.add(Message(conversation_id=conv.id, role='user',
+                                       content=user_message, tokens_used=0))
+                db.session.add(Message(conversation_id=conv.id, role='assistant',
+                                       content=full_text, tokens_used=total_tokens))
+                g.increment_tokens(total_tokens)
+                db.session.commit()
+                remaining = g.tokens_remaining
+            else:
+                remaining = None
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f'DB write failed for {group_id}: {e}')
+            remaining = None
+
+        yield f'data: {json.dumps({"done": True, "tokens_remaining": remaining})}\n\n'
+
+    return Response(stream_with_context(generate()), mimetype='text/event-stream',
+                    headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
 
 
 @main.route('/admin')

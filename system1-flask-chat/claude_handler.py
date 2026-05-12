@@ -1,4 +1,5 @@
 import os
+from collections.abc import Generator
 from anthropic import Anthropic
 
 client = Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
@@ -64,3 +65,32 @@ def get_claude_response(
     text = response.content[0].text
     tokens = response.usage.input_tokens + response.usage.output_tokens
     return text, tokens
+
+
+def stream_claude_response(
+    group_context: str,
+    history: list[dict],
+    user_message: str,
+) -> Generator[tuple[str, int], None, None]:
+    """
+    Stream Claude response token by token.
+
+    Yields (text_chunk, 0) for each text delta, then ('' , total_tokens) once at the end.
+    Raises RuntimeError on API failure.
+    """
+    messages = history + [{'role': 'user', 'content': user_message}]
+
+    try:
+        with client.messages.stream(
+            model=MODEL,
+            max_tokens=MAX_TOKENS,
+            system=build_system_prompt(group_context),
+            messages=messages,
+        ) as stream:
+            for text in stream.text_stream:
+                yield text, 0
+            final = stream.get_final_message()
+            total_tokens = final.usage.input_tokens + final.usage.output_tokens
+            yield '', total_tokens
+    except Exception as e:
+        raise RuntimeError(f'Claude API error: {e}') from e
