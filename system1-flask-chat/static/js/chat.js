@@ -51,12 +51,16 @@ form.addEventListener('submit', async (e) => {
 
           if (event.chunk) {
             fullText += event.chunk;
-            bubble.textContent = fullText;
+            bubble.textContent = fullText;  // plain text while streaming
             log.scrollTop = log.scrollHeight;
           } else if (event.error) {
             bubble.textContent = event.error;
             bubble.closest('.msg').classList.add('msg--error');
           } else if (event.done) {
+            // Snap to rendered Markdown on completion
+            bubble.classList.remove('cursor');
+            bubble.innerHTML = marked.parse(fullText);
+            log.scrollTop = log.scrollHeight;
             history.push({ role: 'assistant', content: fullText });
             if (tokenEl && event.tokens_remaining !== null) {
               tokenEl.textContent = Number(event.tokens_remaining).toLocaleString();
