@@ -1,0 +1,600 @@
+/* =============================================================================
+   Teacherbot / AlgoCratic Futures™ — Design Tokens
+   ----------------------------------------------------------------------------
+   CLASSIFICATION: AMBER CLEARANCE
+   DOCUMENT: AF-WEB-CSS-A-2026-05
+
+   The Algorithm has calculated this to be the optimal visual representation
+   of Teacherbot™ within the AlgoCratic Futures™ ecosystem. Any unauthorized
+   deviation will be logged.
+
+   Two-mode system:
+     - TERMINAL MODE (default)   — cream-on-navy mono, hard 1px borders,
+                                   scan-line CRT texture, no shadows.
+     - POSTER MODE (accent)      — Bungee display + Yellowtail script +
+                                   rainbow extrusion, full-bleed ROYGB stripes.
+
+   Foundations:
+     - Background: deep midnight navy (poster's bg).
+     - Foreground: warm parchment cream (poster's headline color).
+     - Accent ramp: 6 muted earthen ROYGB stripes from the poster.
+     - Type: Bungee / Yellowtail / Space Grotesk / JetBrains Mono.
+   ============================================================================= */
+
+/* -----------------------------------------------------------------------------
+   Webfont imports (Google Fonts). If real ITC Avant Garde / brush-script files
+   become available, drop them in `fonts/` and replace these imports.
+   ----------------------------------------------------------------------------- */
+@import url('https://fonts.googleapis.com/css2?family=Bungee&family=Bungee+Shade&family=Bungee+Inline&family=Yellowtail&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+:root {
+  /* ============================================================================
+     COLOR — PRIMITIVES
+     ============================================================================ */
+
+  /* Surface (deep navy ramp — the poster background, stepped) */
+  --ink-deep:       #0A1828;  /* deepest navy — modal scrims, body bg-after-dark */
+  --ink:            #0E1F33;  /* primary canvas — matches the poster exactly */
+  --ink-raised:    #162A44;  /* cards, sidebars, raised surfaces */
+  --ink-elev:      #1D3554;  /* hover surfaces, top-of-stack panels */
+  --ink-muted:    #3A4E68;  /* 1px borders, low-emphasis dividers */
+  --ink-line:     #5A6E88;  /* slightly brighter line for active dividers */
+
+  /* Foreground (warm parchment cream ramp — the poster's text color) */
+  --cream:        #F4ECD2;  /* default fg, all primary text */
+  --cream-soft:   #E6DDC0;  /* secondary text, slightly recessed */
+  --cream-muted: #B9B19A;  /* tertiary, metadata, timestamps */
+  --cream-dim:   #8A8472;  /* placeholders, disabled */
+
+  /* ROYGB(I) — muted earthen accent ramp (extracted from the poster stripes) */
+  --rust:        #A23A2C;  /* R — danger, "Algorithm watching" red, alert */
+  --vermilion:   #D8542E;  /* O — destructive, critical action */
+  --amber:       #E08236;  /* O — PRIMARY BRAND, CTAs, focus */
+  --mustard:     #E5A93D;  /* Y — warnings, attention */
+  --moss:        #7BA15A;  /* G — success, online, compliance verified */
+  --teal:        #5DA9B4;  /* B — info, links, code keywords */
+  --indigo:      #4A6B9E;  /* (extension) — meta, secondary callouts */
+
+  /* Tint variants for backgrounds-of-color (very low alpha) */
+  --rust-tint:        rgba(162, 58, 44, 0.15);
+  --vermilion-tint:   rgba(216, 84, 46, 0.15);
+  --amber-tint:       rgba(224, 130, 54, 0.15);
+  --mustard-tint:     rgba(229, 169, 61, 0.15);
+  --moss-tint:        rgba(123, 161, 90, 0.15);
+  --teal-tint:        rgba(93, 169, 180, 0.15);
+  --indigo-tint:      rgba(74, 107, 158, 0.15);
+
+  /* Clearance ramp (retuned to earthen palette — replaces legacy neon RGB) */
+  --clear-infrared:   #5A1A14;  /* deeper rust-shadow */
+  --clear-red:        var(--rust);
+  --clear-orange:     var(--vermilion);
+  --clear-yellow:     var(--mustard);
+  --clear-green:      var(--moss);
+  --clear-blue:       var(--teal);
+  --clear-indigo:     var(--indigo);
+  --clear-violet:     #7E5B96;  /* shadowed violet */
+  --clear-ultraviolet:#A77FB8;  /* faded uv lilac */
+
+  /* Semantic aliases */
+  --bg:               var(--ink);
+  --bg-elev:          var(--ink-raised);
+  --bg-overlay:       rgba(10, 24, 40, 0.85);
+
+  --fg:               var(--cream);
+  --fg-secondary:     var(--cream-soft);
+  --fg-muted:         var(--cream-muted);
+  --fg-dim:           var(--cream-dim);
+
+  --accent:           var(--amber);          /* the brand accent — Teacherbot's color */
+  --accent-hover:     #ED9748;
+  --focus-ring:       0 0 0 2px var(--amber), 0 0 8px rgba(224, 130, 54, 0.35);
+
+  --success:          var(--moss);
+  --warning:          var(--mustard);
+  --danger:           var(--rust);
+  --critical:         var(--vermilion);
+  --info:             var(--teal);
+
+  --border:           1px solid var(--ink-muted);
+  --border-active:    2px solid var(--cream);
+  --border-amber:     1px solid var(--amber);
+
+  /* ============================================================================
+     TYPE — FAMILIES
+     ============================================================================ */
+  --font-display:     'Bungee', 'Bungee Inline', 'Impact', sans-serif;
+  --font-display-shaded: 'Bungee Shade', 'Bungee', 'Impact', sans-serif;
+  --font-script:      'Yellowtail', 'Pacifico', cursive;
+  --font-sans:        'Space Grotesk', 'Inter', system-ui, sans-serif;
+  --font-mono:        'JetBrains Mono', 'Menlo', 'Monaco', 'Courier New', monospace;
+
+  /* ============================================================================
+     TYPE — SCALE (rem-based, base = 16px)
+     ============================================================================ */
+  --text-2xs:   0.6875rem;  /* 11px — fine print, classification banners */
+  --text-xs:    0.75rem;    /* 12px — metadata, terminal status */
+  --text-sm:    0.8125rem;  /* 13px — terminal body, dense UI */
+  --text-base:  0.9375rem;  /* 15px — default body */
+  --text-md:    1rem;       /* 16px — buttons, large body */
+  --text-lg:    1.125rem;   /* 18px — subheadings */
+  --text-xl:    1.5rem;     /* 24px — section titles (sans) */
+  --text-2xl:   2rem;       /* 32px — page titles (sans) */
+  --text-3xl:   2.75rem;    /* 44px — display headlines (Bungee) */
+  --text-4xl:   4rem;       /* 64px — hero display (Bungee) */
+  --text-5xl:   6rem;       /* 96px — poster-mode hero */
+
+  /* ============================================================================
+     TYPE — WEIGHTS & STYLE TOKENS
+     ============================================================================ */
+  --leading-tight:   1.1;
+  --leading-snug:    1.25;
+  --leading-mono:    1.4;     /* terminal */
+  --leading-normal:  1.6;     /* body sans */
+  --leading-loose:   1.8;
+
+  --tracking-tight:   -0.01em;
+  --tracking-normal:   0;
+  --tracking-wide:     0.05em;
+  --tracking-wider:    0.1em;
+  --tracking-widest:   0.2em;
+
+  /* ============================================================================
+     SPACING — 4px base
+     ============================================================================ */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --space-9: 96px;
+
+  /* ============================================================================
+     RADIUS — sparing (0 by default, 2px on pills, 50% on dots)
+     ============================================================================ */
+  --radius-none:   0;
+  --radius-sm:     2px;
+  --radius-pill:   999px;
+  --radius-circle: 50%;
+
+  /* ============================================================================
+     MOTION
+     ============================================================================ */
+  --ease:        cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-in:     cubic-bezier(0.4, 0, 1, 1);
+  --ease-out:    cubic-bezier(0, 0, 0.2, 1);
+
+  --dur-fast:    150ms;
+  --dur-base:    250ms;
+  --dur-slow:    400ms;
+
+  /* ============================================================================
+     EFFECTS — used very sparingly, only where the 1970s/CRT mood calls for it
+     ============================================================================ */
+  --scan-lines: repeating-linear-gradient(
+    0deg,
+    transparent 0px,
+    transparent 2px,
+    rgba(244, 236, 210, 0.025) 2px,
+    rgba(244, 236, 210, 0.025) 4px
+  );
+
+  --stripes-roygb: linear-gradient(
+    90deg,
+    var(--rust) 0%, var(--rust) 16.66%,
+    var(--vermilion) 16.66%, var(--vermilion) 33.33%,
+    var(--amber) 33.33%, var(--amber) 50%,
+    var(--mustard) 50%, var(--mustard) 66.66%,
+    var(--moss) 66.66%, var(--moss) 83.33%,
+    var(--teal) 83.33%, var(--teal) 100%
+  );
+
+  /* Bungee-rainbow text-shadow extrusion (used as box-shadow:none + text-shadow stack) */
+  --shadow-rainbow:
+     2px 2px 0 var(--rust),
+     4px 4px 0 var(--vermilion),
+     6px 6px 0 var(--amber),
+     8px 8px 0 var(--mustard),
+    10px 10px 0 var(--moss),
+    12px 12px 0 var(--teal);
+
+  /* Single-color drop for less-loud Poster Mode headings */
+  --shadow-amber: 3px 3px 0 var(--amber), 6px 6px 0 var(--rust);
+
+  /* Glow for focused mono inputs (retuned from CRT-green to warm amber) */
+  --glow-amber: 0 0 8px rgba(224, 130, 54, 0.45);
+  --glow-cream: 0 0 6px rgba(244, 236, 210, 0.25);
+
+  /* Inset depress effect for pressed buttons */
+  --depress-inset: inset 0 2px 0 rgba(10, 24, 40, 0.6);
+
+  /* ============================================================================
+     LAYOUT TOKENS
+     ============================================================================ */
+  --content-max:        1200px;
+  --reading-max:         720px;  /* chat thread max */
+  --sidebar-w:           280px;
+  --header-h:             56px;
+}
+
+/* =============================================================================
+   SEMANTIC ELEMENT STYLES
+   Use these as the base for any HTML written in the system. They give you a
+   default that's already on-brand without thinking about it.
+   ============================================================================= */
+
+html {
+  background: var(--bg);
+  color: var(--fg);
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  color: var(--fg);
+  background: var(--bg);
+  position: relative;
+}
+
+/* CRT scan-line overlay — fixed over the viewport. Inherited from the legacy
+   terminal-ui.css behavior; intentionally subtle. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: var(--scan-lines);
+  pointer-events: none;
+  z-index: 9999;
+  mix-blend-mode: screen;
+  opacity: 0.6;
+}
+
+/* ----- HEADINGS -------------------------------------------------------------- */
+
+h1, .h1 {
+  font-family: var(--font-display);
+  font-weight: 400;        /* Bungee is single-weight */
+  font-size: var(--text-3xl);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+  color: var(--cream);
+  text-transform: uppercase;
+  margin: 0 0 var(--space-5);
+}
+
+h2, .h2 {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: var(--text-2xl);
+  line-height: var(--leading-snug);
+  letter-spacing: var(--tracking-tight);
+  color: var(--cream);
+  margin: 0 0 var(--space-4);
+}
+
+h3, .h3 {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: var(--text-xl);
+  line-height: var(--leading-snug);
+  color: var(--cream);
+  margin: 0 0 var(--space-3);
+}
+
+h4, .h4 {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: var(--text-md);
+  line-height: var(--leading-snug);
+  color: var(--cream);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  margin: 0 0 var(--space-2);
+}
+
+/* Label — for classification banners, ALL CAPS UI chrome */
+.label {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wider);
+  color: var(--fg-secondary);
+}
+
+/* Eyebrow — same as label but for above-heading "DOCUMENT: AF-..." style */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-widest);
+  color: var(--fg-muted);
+}
+
+/* Poster-mode display: rainbow-extruded headline (use very sparingly) */
+.display-poster {
+  font-family: var(--font-display);
+  font-size: var(--text-4xl);
+  line-height: 1;
+  text-transform: uppercase;
+  color: var(--cream);
+  text-shadow: var(--shadow-rainbow);
+  letter-spacing: 0;
+}
+
+/* Poster-mode script accent — for the one "Provides" word per layout */
+.display-script {
+  font-family: var(--font-script);
+  font-weight: 400;
+  font-size: var(--text-4xl);
+  line-height: 1;
+  color: var(--amber);
+  font-style: normal;  /* Yellowtail is already cursive */
+  text-shadow: 3px 3px 0 var(--vermilion);
+}
+
+/* ----- BODY ------------------------------------------------------------------ */
+
+p {
+  margin: 0 0 var(--space-4);
+  max-width: var(--reading-max);
+  text-wrap: pretty;
+}
+
+small, .small {
+  font-size: var(--text-sm);
+  color: var(--fg-secondary);
+}
+
+.fine-print {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+  line-height: var(--leading-loose);
+  letter-spacing: 0.02em;
+}
+
+/* ----- LINKS ----------------------------------------------------------------- */
+
+a {
+  color: var(--teal);
+  text-decoration: none;
+  border-bottom: 1px dashed transparent;
+  transition: color var(--dur-fast) var(--ease),
+              border-color var(--dur-fast) var(--ease);
+}
+
+a:hover {
+  color: var(--amber);
+  border-bottom-color: var(--amber);
+}
+
+a:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-bottom-color: var(--amber);
+}
+
+/* ----- CODE / TERMINAL ------------------------------------------------------- */
+
+code, kbd, samp, pre {
+  font-family: var(--font-mono);
+  font-size: 0.95em;
+}
+
+code {
+  background: var(--ink-raised);
+  color: var(--mustard);
+  padding: 0.1em 0.4em;
+  border: 1px solid var(--ink-muted);
+}
+
+pre {
+  background: var(--ink-deep);
+  color: var(--cream);
+  padding: var(--space-4);
+  border: 1px solid var(--ink-muted);
+  border-left: 3px solid var(--amber);
+  overflow-x: auto;
+  line-height: var(--leading-mono);
+}
+
+kbd {
+  background: var(--ink-raised);
+  color: var(--cream);
+  border: 1px solid var(--ink-line);
+  border-bottom-width: 2px;
+  padding: 0.05em 0.4em;
+  font-size: var(--text-xs);
+}
+
+/* ----- HR / DIVIDERS --------------------------------------------------------- */
+
+hr {
+  border: 0;
+  height: 1px;
+  background: var(--ink-muted);
+  margin: var(--space-5) 0;
+}
+
+.hr-ascii {
+  font-family: var(--font-mono);
+  color: var(--fg-muted);
+  text-align: center;
+  letter-spacing: 0;
+  margin: var(--space-4) 0;
+  user-select: none;
+}
+.hr-ascii::before { content: "─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─"; }
+
+/* ----- SELECTION ------------------------------------------------------------- */
+
+::selection {
+  background: var(--amber);
+  color: var(--ink);
+}
+
+/* ----- FORM ELEMENTS — defaults ---------------------------------------------- */
+
+input, textarea, select, button {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+input[type="text"], input[type="email"], input[type="password"],
+input[type="search"], input[type="number"], textarea, select {
+  background: var(--ink-deep);
+  border: 1px solid var(--ink-muted);
+  color: var(--cream);
+  padding: var(--space-2) var(--space-3);
+  border-radius: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  transition: border-color var(--dur-fast) var(--ease),
+              box-shadow var(--dur-fast) var(--ease);
+}
+
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: var(--amber);
+  box-shadow: var(--glow-amber);
+  background: rgba(14, 31, 51, 0.95);
+}
+
+input::placeholder, textarea::placeholder {
+  color: var(--cream-dim);
+  font-style: italic;
+}
+
+/* ----- BUTTONS — base classes (use these as primitives) --------------------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  background: transparent;
+  color: var(--cream);
+  border: 1px solid var(--cream);
+  border-radius: 0;
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease);
+  text-decoration: none;
+  user-select: none;
+}
+
+.btn::before { content: "[ "; }
+.btn::after  { content: " ]"; }
+
+.btn:hover {
+  background: var(--cream);
+  color: var(--ink);
+  transform: translateY(-1px);
+}
+
+.btn:active {
+  transform: translateY(0);
+  box-shadow: var(--depress-inset);
+}
+
+.btn:disabled,
+.btn[aria-disabled="true"] {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn--primary {
+  border-color: var(--amber);
+  color: var(--amber);
+}
+.btn--primary:hover {
+  background: var(--amber);
+  color: var(--ink);
+  box-shadow: var(--glow-amber);
+}
+
+.btn--danger {
+  border-color: var(--rust);
+  color: var(--rust);
+}
+.btn--danger:hover {
+  background: var(--rust);
+  color: var(--cream);
+  box-shadow: 0 0 8px rgba(162, 58, 44, 0.5);
+}
+
+.btn--ghost {
+  border-color: transparent;
+  color: var(--fg-muted);
+}
+.btn--ghost::before, .btn--ghost::after { content: ""; }
+.btn--ghost:hover {
+  background: var(--ink-raised);
+  color: var(--cream);
+  border-color: var(--ink-muted);
+}
+
+/* ============================================================================
+   UTILITY CLASSES
+   ============================================================================ */
+
+.mono   { font-family: var(--font-mono); }
+.sans   { font-family: var(--font-sans); }
+.display{ font-family: var(--font-display); }
+.script { font-family: var(--font-script); }
+
+.uppercase { text-transform: uppercase; letter-spacing: var(--tracking-wide); }
+.center { text-align: center; }
+
+.bg-stripes {
+  background: var(--stripes-roygb);
+}
+
+.scan-lines::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--scan-lines);
+  pointer-events: none;
+  opacity: 0.8;
+}
+
+/* CRT flicker — applied only to mastheads, sparingly */
+@keyframes crt-flicker {
+  0%, 100% { opacity: 1; }
+  47%      { opacity: 0.95; }
+  48%      { opacity: 0.82; }
+  49%      { opacity: 0.95; }
+  72%      { opacity: 0.92; }
+  73%      { opacity: 1; }
+}
+.crt-flicker { animation: crt-flicker 4s infinite; }
+
+@keyframes cursor-blink {
+  0%, 49%  { opacity: 1; }
+  50%, 100%{ opacity: 0; }
+}
+.cursor::after {
+  content: "▌";
+  margin-left: 2px;
+  color: var(--amber);
+  animation: cursor-blink 1s steps(2) infinite;
+}
+
+@keyframes pulse-alert {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.7; }
+}
+.pulse-alert { animation: pulse-alert 2s infinite; }
