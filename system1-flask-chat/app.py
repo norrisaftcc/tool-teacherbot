@@ -13,7 +13,11 @@ def create_app(test_config=None):
 
     # Config
     app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'dev-secret')
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///ta_system.db')
+    database_url = os.getenv('DATABASE_URL', 'sqlite:///ta_system.db')
+    # Render gives postgres:// but SQLAlchemy 2.x requires postgresql://
+    if database_url.startswith('postgres://'):
+        database_url = database_url.replace('postgres://', 'postgresql://', 1)
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['ADMIN_PASSWORD'] = os.getenv('ADMIN_PASSWORD', 'admin')
 
