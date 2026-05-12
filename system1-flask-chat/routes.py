@@ -1,5 +1,6 @@
-from flask import Blueprint, render_template, redirect, url_for, session, request, flash
+from flask import Blueprint, render_template, redirect, url_for, session, request, flash, jsonify, current_app
 from functools import wraps
+from claude_handler import get_claude_response
 
 main = Blueprint('main', __name__)
 
@@ -63,6 +64,72 @@ def chat():
     return render_template('chat.html',
                            group_id=session.get('group_id', ''),
                            clearance=session.get('clearance', ''))
+
+
+@main.route('/api/chat', methods=['POST'])
+@group_login_required
+def api_chat():
+    from models import db, Group, Conversation, Message
+
+    data = request.get_json()
+    user_message = (data.get('message') or '').strip()
+    history = data.get('history') or []
+
+    if not user_message:
+        return jsonify({'error': 'Empty message'}), 400
+
+    group = Group.query.filter_by(name=session['group_id']).first()
+    if group and group.tokens_remaining <= 0:
+        return jsonify({'error': 'Token budget exhausted. Contact your instructor.'}), 403
+
+    try:
+        response_text, tokens_used = get_claude_response(
+            session['group_context'], history, user_message
+        )
+    except RuntimeError as e:
+        return jsonify({'error': str(e)}), 502
+
+    # Log to DB — failures here must not block the response
+    try:
+        if group:
+            conv = (Conversation.query
+                    .filter_by(group_id=group.id)
+                    .order_by(Conversation.started_at.desc())
+                    .first())
+            if not conv or not history:
+                conv = Conversation(group_id=group.id)
+                db.session.add(conv)
+                db.session.flush()
+
+            db.session.add(Message(conversation_id=conv.id, role='user',
+                                   content=user_message, tokens_used=0))
+            db.session.add(Message(conversation_id=conv.id, role='assistant',
+                                   content=response_text, tokens_used=tokens_used))
+            group.increment_tokens(tokens_used)
+            db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f'DB write failed for {session["group_id"]}: {e}')
+
+    return jsonify({
+        'response': response_text,
+        'tokens_remaining': group.tokens_remaining if group else None,
+    })
+
+
+@main.route('/admin')
+def admin():
+    password = request.args.get('password', '')
+    if password != current_app.config.get('ADMIN_PASSWORD', ''):
+        return render_template('admin_login.html'), 200
+
+    from models import Group, Conversation, Message
+    groups = Group.query.all()
+    conversations = (Conversation.query
+                     .order_by(Conversation.started_at.desc())
+                     .limit(50)
+                     .all())
+    return render_template('admin.html', groups=groups, conversations=conversations)
 
 
 @main.route('/logout')
