@@ -51,12 +51,15 @@ def get_claude_response(
     """
     messages = history + [{'role': 'user', 'content': user_message}]
 
-    response = client.messages.create(
-        model=MODEL,
-        max_tokens=MAX_TOKENS,
-        system=build_system_prompt(group_context),
-        messages=messages,
-    )
+    try:
+        response = client.messages.create(
+            model=MODEL,
+            max_tokens=MAX_TOKENS,
+            system=build_system_prompt(group_context),
+            messages=messages,
+        )
+    except Exception as e:
+        raise RuntimeError(f'Claude API error: {e}') from e
 
     text = response.content[0].text
     tokens = response.usage.input_tokens + response.usage.output_tokens
