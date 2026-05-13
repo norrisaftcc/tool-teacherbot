@@ -1,0 +1,47 @@
+{% extends "_base.html" %}
+{% block title %}Authenticate{% endblock %}
+{% block body %}
+<header class="masthead">
+  <div class="masthead__brand">
+    <span class="masthead__mark">
+      <img src="{{ url_for('static', filename='img/af-a-eye.svg') }}" alt="AF" style="width:100%;height:100%;">
+    </span>
+    <div class="masthead__brand-text">
+      <span>TEACHERBOT</span>
+      <small>ALGOCRATIC FUTURES &middot; CAPSTONE TA</small>
+    </div>
+  </div>
+</header>
+
+<main class="auth-shell">
+  <section class="auth-card">
+    <h1 class="auth-card__title">OPERATIVE AUTHENTICATION</h1>
+    <p class="auth-card__sub">Present your group identifier and access phrase to receive contextual assistance.</p>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <ul class="auth-flash">
+          {% for m in messages %}<li>{{ m }}</li>{% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="{{ url_for('main.login') }}" class="auth-form">
+      <label class="auth-field">
+        <span>GROUP ID</span>
+        <input name="group_id" autocomplete="username" autofocus required placeholder="group1">
+      </label>
+      <label class="auth-field">
+        <span>ACCESS PHRASE</span>
+        <input name="password" type="password" autocomplete="current-password" required placeholder="•••••••">
+      </label>
+      <button type="submit" class="auth-submit">[ AUTHENTICATE ↩ ]</button>
+    </form>
+
+    <p class="auth-card__hint">
+      Demo credentials live in <code>auth.py</code>. Instructors:
+      <a href="{{ url_for('main.admin') }}">admin console</a>.
+    </p>
+  </section>
+</main>
+{% endblock %}

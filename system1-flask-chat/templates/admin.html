@@ -1,0 +1,78 @@
+{% extends "_base.html" %}
+{% block title %}Admin Console{% endblock %}
+{% block body %}
+<header class="masthead">
+  <div class="masthead__brand">
+    <span class="masthead__mark">
+      <img src="{{ url_for('static', filename='img/af-a-eye.svg') }}" alt="AF" style="width:100%;height:100%;">
+    </span>
+    <div class="masthead__brand-text">
+      <span>TEACHERBOT</span>
+      <small>INSTRUCTOR CONSOLE</small>
+    </div>
+  </div>
+  <nav class="masthead__breadcrumb">
+    <span>ADMIN</span>
+    <span class="sep">/</span>
+    <span class="now">DASHBOARD</span>
+  </nav>
+  <div class="masthead__right">
+    <a href="{{ url_for('main.index') }}">EXIT CONSOLE</a>
+  </div>
+</header>
+
+<main class="admin">
+  <section class="admin__section">
+    <h2 class="admin__heading">GROUP USAGE</h2>
+    <table class="admin__table">
+      <thead>
+        <tr>
+          <th>GROUP</th>
+          <th>CLEARANCE</th>
+          <th>TOKENS USED</th>
+          <th>BUDGET</th>
+          <th>REMAINING</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for g in groups %}
+        <tr>
+          <td><strong>{{ g.name }}</strong></td>
+          <td class="clearance--{{ g.clearance_level|lower }}">{{ g.clearance_level }}</td>
+          <td>{{ g.tokens_used }}</td>
+          <td>{{ g.token_budget }}</td>
+          <td>{{ g.tokens_remaining }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5"><em>No group activity yet.</em></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="admin__section">
+    <h2 class="admin__heading">RECENT CONVERSATIONS</h2>
+    {% for c in conversations %}
+      <article class="admin__conversation">
+        <header class="admin__conversation-head">
+          <strong>{{ c.group.name if c.group else 'unknown' }}</strong>
+          <span>conversation #{{ c.id }}</span>
+          <span>{{ c.started_at.strftime('%Y-%m-%d %H:%M UTC') }}</span>
+          <span>{{ c.messages|length }} message{{ '' if c.messages|length == 1 else 's' }}</span>
+        </header>
+        <ol class="admin__messages">
+          {% for m in c.messages %}
+            <li class="admin__msg admin__msg--{{ m.role }}">
+              <span class="admin__msg-role">{{ m.role|upper }}</span>
+              <span class="admin__msg-content">{{ m.content }}</span>
+              {% if m.tokens_used %}<span class="admin__msg-tokens">{{ m.tokens_used }} tok</span>{% endif %}
+            </li>
+          {% endfor %}
+        </ol>
+      </article>
+    {% else %}
+      <p><em>No conversations logged yet.</em></p>
+    {% endfor %}
+  </section>
+</main>
+{% endblock %}

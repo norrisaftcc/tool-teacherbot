@@ -1,0 +1,72 @@
+{% extends "_base.html" %}
+{% block title %}Chat &middot; {{ group_id }}{% endblock %}
+{% block body %}
+<div class="app">
+  <header class="masthead">
+    <div class="masthead__brand">
+      <span class="masthead__mark">
+        <img src="{{ url_for('static', filename='img/af-a-eye.svg') }}" alt="AF" style="width:100%;height:100%;">
+      </span>
+      <div class="masthead__brand-text">
+        <span>TEACHERBOT</span>
+        <small>CAPSTONE TA &middot; SESSION ACTIVE</small>
+      </div>
+    </div>
+    <nav class="masthead__breadcrumb">
+      <span>OPERATIVES</span>
+      <span class="sep">/</span>
+      <span class="now">{{ group_id|upper }}</span>
+    </nav>
+    <div class="masthead__right">
+      <span class="clearance--{{ clearance|lower }}">{{ clearance }} CLEARANCE</span>
+      <span>·</span>
+      <span>TOKENS <strong id="tokens-remaining">{{ tokens_remaining }}</strong> / {{ token_budget }}</span>
+      <span>·</span>
+      <a href="{{ url_for('main.logout') }}">LOGOUT</a>
+    </div>
+  </header>
+
+  <div class="main">
+    <main class="chat">
+      <div class="chat__topbar">
+        <div class="chat__title">
+          <span class="chat__title-mark">{{ group_id|upper }}</span>
+          <div class="chat__title-text">
+            <span>{{ group_id|upper }} &middot; capstone session</span>
+            <small>CONTEXT INJECTED &middot; {{ clearance }} CLEARANCE</small>
+          </div>
+        </div>
+        <span id="status-pill" class="pill pill--online">
+          <span class="pill__dot"></span>READY
+        </span>
+      </div>
+
+      <div id="chat-log" class="chat__thread"></div>
+
+      <form id="chat-form" class="composer" autocomplete="off">
+        <div class="composer__attachments"></div>
+        <div class="composer__wrap">
+          <span class="composer__prompt">&gt;</span>
+          <textarea
+            id="message-input"
+            class="composer__input"
+            rows="1"
+            placeholder="Ask Teacherbot. Enter to send · Shift+Enter for newline."
+            autofocus
+          ></textarea>
+          <button type="submit" class="composer__send">SEND ↩</button>
+        </div>
+        <div class="composer__hint">
+          <span>↩ send · ⇧↩ newline</span>
+          <span style="color:var(--cream-muted)">All conversations logged for instructor review.</span>
+        </div>
+      </form>
+    </main>
+  </div>
+</div>
+
+<script>
+  window.TEACHERBOT_GROUP = {{ group_id|tojson }};
+</script>
+<script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+{% endblock %}

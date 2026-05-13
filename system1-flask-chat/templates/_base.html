@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Teacherbot{% endblock %} · AlgoCratic Futures</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/colors_and_type.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/kit.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+<body>
+  <div class="classification-banner">
+    <span>AMBER CLEARANCE</span>
+    <span>·</span>
+    <span>TEACHERBOT TERMINAL</span>
+    <span>·</span>
+    <span>ALL CONVERSATIONS LOGGED</span>
+  </div>
+  {% block body %}{% endblock %}
+</body>
+</html>
