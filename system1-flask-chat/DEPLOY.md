@@ -113,3 +113,5 @@ Blueprint at the repo root is kept in sync with the deployed state and is also
 a valid (though manual) starting point if you prefer the "New Blueprint" flow
 in the Render dashboard — note that the dashboard requires a payment method
 on file before it will apply a Blueprint, even for free-tier resources.
+
+<!-- deploy verified 2026-05-17T01:46:44Z -->
