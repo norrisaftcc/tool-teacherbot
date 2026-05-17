@@ -4,28 +4,79 @@
 
 ---
 
+## Current Status (2026-05-16)
+
+| System | Status | Where |
+|---|---|---|
+| **System 1** — Flask group chat | ✅ Live on Render | https://teacherbot-6yut.onrender.com/ |
+| **System 2** — Claude Code CLI distribution | ⛔ Not started | Future work |
+
+### Use the live System 1
+
+1. Visit https://teacherbot-6yut.onrender.com/
+2. Log in as one of the demo groups (see `system1-flask-chat/auth.py` for the full list):
+   - `group1` / `capstone2026`
+   - `group2` / `dataman2026`
+   - `group3` / `finaid2026`
+   - `group4` / `health2026`
+   - `group5` / `sched2026`
+3. Chat. Claude responds with each group's project context loaded from `system1-flask-chat/context/group{1-5}_context.md` (placeholders until the instructor fills them in).
+4. Admin dashboard: `/admin?password=<ADMIN_PASSWORD>` shows per-group token usage and recent conversations.
+
+### Run System 1 locally
+
+```bash
+cd system1-flask-chat
+cp .env.example .env   # fill in ANTHROPIC_API_KEY, FLASK_SECRET_KEY, ADMIN_PASSWORD
+pip install -r requirements.txt
+flask --app app:create_app run --debug
+# http://127.0.0.1:5000/
+```
+
+SQLite is used automatically when `DATABASE_URL` is unset, so local dev needs no Postgres.
+
+### Operate the live deploy
+
+The authoritative runbook is [`system1-flask-chat/DEPLOY.md`](system1-flask-chat/DEPLOY.md):
+env vars, redeploy, log tail, rollback, suspend/resume, known alpha-grade issues.
+
+Push to `main` triggers auto-deploy (~1 minute to live).
+
+---
+
 ## What This Is
 
 A dual-system approach to providing students with AI assistance:
 
-- **System 1**: Flask web chat interface for Q&A and debugging help
-- **System 2**: Claude Code CLI distribution with pedagogical guardrails
+- **System 1**: Flask web chat interface for Q&A and debugging help — **built**
+- **System 2**: Claude Code CLI distribution with pedagogical guardrails — **planned**
 
-Both systems track token usage, inject per-group context, and enforce pedagogical best practices.
+Both systems were designed to track token usage, inject per-group context, and enforce pedagogical best practices.
+
+> The remainder of this README captures the original two-instance parallel-development plan
+> and timeline. System 1's implementation followed that plan; System 2 has not yet been
+> started. The bootstrap procedure that actually shipped System 1 to Render is documented
+> at `docs/superpowers/plans/2026-05-16-render-deployment.md`.
 
 ---
 
 ## Quick Start: Deploying with Two Claude Code Instances
 
+> **Historical (Hour-0 plan).** System 1 has already been built and deployed using this
+> plan. If you're starting System 2 from scratch, the steps below still apply for that
+> instance. Use the "Run System 1 locally" instructions above if you just want to
+> hack on System 1.
+
 ### Prerequisites
 ```bash
 # Clone this repository
-git clone [repo-url]
-cd ta-systems-alpha
+git clone https://github.com/norrisaftcc/tool-teacherbot
+cd tool-teacherbot
 
 # Verify structure
 ls -la
-# Should see: system1-flask-chat/ system2-code-distribution/ shared/ docs/
+# Should see: system1-flask-chat/ docs/ render.yaml ...
+# (system2-code-distribution/ and shared/ are NOT yet created)
 ```
 
 ### Launch Instance A (System 1 - Flask Chat)
@@ -323,14 +374,15 @@ open https://your-app.onrender.com/admin
 
 ## Success Criteria
 
-### Alpha Phase Success
-- ✅ System 1 deployed on Render and accessible
-- ✅ All 5 groups can authenticate to System 1
-- ✅ System 2 configurations generated and distributed
-- ✅ Students using Claude Code with guardrails
-- ✅ Token tracking accurate in both systems
-- ✅ Instructor can monitor usage via admin dashboard
-- ✅ No critical bugs in first 48 hours
+### Alpha Phase Success (as of 2026-05-16)
+
+- [x] System 1 deployed on Render and accessible — https://teacherbot-6yut.onrender.com/
+- [x] All 5 groups can authenticate to System 1
+- [ ] System 2 configurations generated and distributed — *System 2 not started*
+- [ ] Students using Claude Code with guardrails — *blocked on System 2*
+- [x] Token tracking working in System 1
+- [x] Instructor can monitor usage via System 1 admin dashboard
+- [ ] No critical bugs in first 48 hours — *first push-to-deploy verified; classroom usage pending*
 
 ---
 
