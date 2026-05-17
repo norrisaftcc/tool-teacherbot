@@ -100,26 +100,38 @@ because the CLI does not accept custom database/user names at creation time.
 
 ## Tooling split — who does what
 
+Render CLI v2.17.0 covers most operations but has two gaps that matter for this
+deploy: it cannot create a managed Postgres database, and it cannot delete a
+service. Both gaps are filled by calling the Render REST API directly with
+`curl`, using a personal API key the user generates once in the dashboard.
+
 | Step | Actor | How |
 |---|---|---|
 | Install Render CLI | user | `brew install render` |
 | Authenticate Render CLI | user | `render login` (browser-based OAuth) |
+| Generate Render API Key | user | dashboard → Account Settings → API Keys → Create; export as `RENDER_API_KEY` |
 | Generate `FLASK_SECRET_KEY` | user | one-line python invocation, captured into shell variable |
 | Provide `ANTHROPIC_API_KEY` | user | pasted into prompt when the agent needs it |
-| Delete old `tool-teacherbot` service | agent | `render services delete <id>` after confirming ID via `render services` |
-| Create Postgres DB | agent | `render postgres create` |
-| Create web service with all env vars inline | agent | `render services create` |
-| Tail initial deploy logs | agent | `render logs --resources <service-id> --tail` |
+| Set CLI workspace | agent | `render workspace set tea-d81rjp0sfn5c738tl430` |
+| Delete old `tool-teacherbot` service | agent | `DELETE /v1/services/<id>` (REST — CLI cannot delete services) |
+| Create Postgres DB `teacherbot-db` | agent | `POST /v1/postgres` (REST — CLI cannot create Postgres) |
+| Poll DB until `status: available` | agent | `GET /v1/postgres/<id>` until ready |
+| Fetch DB connection string | agent | `GET /v1/postgres/<id>/connection-info` |
+| Create web service `teacherbot` with all env vars inline | agent | `render services create --type web_service --env-var KEY=VALUE …` |
+| Watch initial deploy | agent | `render deploys list <srv-id>` until status `live` |
+| Tail logs on failure | agent | `render logs --resources <srv-id>` |
 | HTTP smoke test (`/`, `/login`, `/admin`) | agent | `curl` against the live URL |
 | Browser smoke test (chat streaming) | user | manual; agent watches logs in parallel |
+| Trigger redeploy after context-file commits | agent (or auto) | push to `main` triggers auto-deploy |
 
-### Fallback if CLI subcommands are unavailable
+### About the API key
 
-The Render CLI is in active development; subcommand names occasionally change
-between releases. If a needed subcommand is missing, the agent falls back to
-the REST API at `https://api.render.com/v1/` using the `RENDER_API_KEY`
-generated from the Render dashboard. The fallback is documented in
-`system1-flask-chat/DEPLOY.md` so a human operator can repeat it.
+The `RENDER_API_KEY` is a personal access token scoped to the user's account.
+It is required *only* for the REST gaps above; the CLI uses its own
+`render login` token for everything else. The key is exported in the user's
+shell, never committed, and not echoed in command output. After deployment is
+complete, the key can be revoked if the user prefers to operate via the
+dashboard for future changes.
 
 ## Repo changes (the deploy PR)
 
