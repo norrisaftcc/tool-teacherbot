@@ -1,8 +1,13 @@
 ---
 title: Render Deployment — System 1 (algocratic-ta-system1)
 date: 2026-05-13
-status: approved
+status: superseded
 ---
+
+> **SUPERSEDED by `docs/superpowers/specs/2026-05-16-render-deployment-design.md`.**
+> This document assumed Render MCP tools that were not available in the agent
+> environment. The 2026-05-16 revision drives the deploy via Render CLI plus
+> targeted REST calls and renames the service to `teacherbot`.
 
 # Render Deployment Design
 

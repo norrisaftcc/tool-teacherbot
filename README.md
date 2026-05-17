@@ -285,6 +285,8 @@ open https://your-app.onrender.com/admin
 
 ### System 1 (Instance A)
 - `system1-flask-chat/CLAUDE.md` - Instance A's guide
+- [`system1-flask-chat/DEPLOY.md`](system1-flask-chat/DEPLOY.md) - **Render operator runbook** (env vars, redeploy, logs, rollback)
+- `docs/superpowers/plans/2026-05-16-render-deployment.md` - Original deploy bootstrap procedure
 - Referenced repos: `algorithm-shodann` (pedagogical patterns), `tool-algoflow-py` (session management)
 
 ### System 2 (Instance B)

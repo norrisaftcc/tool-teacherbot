@@ -1,10 +1,20 @@
+# Render Blueprint for System 1 (teacherbot).
+#
+# Note: applying this Blueprint via the Render dashboard requires a payment
+# method on file (Render policy, even for free-tier). The canonical bootstrap
+# procedure uses CLI + REST (no Blueprint) and is documented at
+# docs/superpowers/plans/2026-05-16-render-deployment.md. This file is kept
+# in sync with what was deployed so a future "New Blueprint" flow reproduces
+# the same teacherbot/teacherbot-db pair.
+
 services:
   - type: web
-    name: algocratic-ta-system1
+    name: teacherbot
     env: python
     rootDir: system1-flask-chat
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn "app:create_app()"
+    autoDeploy: true
     envVars:
       - key: ANTHROPIC_API_KEY
         sync: false
@@ -14,10 +24,9 @@ services:
         sync: false
       - key: DATABASE_URL
         fromDatabase:
-          name: algocratic-ta-db
+          name: teacherbot-db
           property: connectionString
 
 databases:
-  - name: algocratic-ta-db
-    databaseName: ta_system
-    user: ta_admin
+  - name: teacherbot-db
+    plan: free

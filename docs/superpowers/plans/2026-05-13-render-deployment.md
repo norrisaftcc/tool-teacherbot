@@ -1,5 +1,9 @@
 # Render Deployment — System 1 Implementation Plan
 
+> **SUPERSEDED by `docs/superpowers/plans/2026-05-16-render-deployment.md`.**
+> MCP tools assumed by this plan are not available. See the 2026-05-16 plan
+> for the CLI+REST approach actually used.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Deploy `system1-flask-chat` to Render as a Python web service backed by a managed PostgreSQL database.
