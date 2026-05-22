@@ -2,11 +2,11 @@ from pathlib import Path
 
 # Alpha: hardcoded credentials. Replace with DB-backed auth post-alpha.
 GROUPS = {
-    'group1': {'password': 'capstone2026', 'clearance': 'ORANGE'},
-    'group2': {'password': 'dataman2026',  'clearance': 'YELLOW'},
-    'group3': {'password': 'finaid2026',   'clearance': 'ORANGE'},
-    'group4': {'password': 'health2026',   'clearance': 'YELLOW'},
-    'group5': {'password': 'sched2026',    'clearance': 'ORANGE'},
+    'csc114': {'password': '2026su',     'clearance': 'ORANGE'},
+    'group2': {'password': 'dataman2026', 'clearance': 'YELLOW'},
+    'group3': {'password': 'finaid2026',  'clearance': 'ORANGE'},
+    'group4': {'password': 'health2026',  'clearance': 'YELLOW'},
+    'group5': {'password': 'sched2026',   'clearance': 'ORANGE'},
 }
 
 CONTEXT_DIR = Path(__file__).parent / 'context'
