@@ -39,3 +39,22 @@ def test_non_markdown_files_are_skipped(tmp_path, monkeypatch):
     assert '# Lesson' in result
     assert 'diagram.png' not in result
     assert 'plain text' not in result
+
+
+def test_concatenation_order_is_sorted_by_relative_path(tmp_path, monkeypatch):
+    ctx = _setup_context(tmp_path, monkeypatch)
+    (ctx / 'csc114_context.md').write_text('# Header\n')
+    base = ctx / 'csc114'
+    (base / 'week-02').mkdir(parents=True)
+    (base / 'week-01').mkdir(parents=True)
+    (base / 'crosswalk.md').write_text('CROSSWALK\n')
+    (base / 'week-01' / 'a.md').write_text('W1A\n')
+    (base / 'week-01' / 'b.md').write_text('W1B\n')
+    (base / 'week-02' / 'a.md').write_text('W2A\n')
+
+    result = load_group_context('csc114')
+    # crosswalk.md sorts before week-01/* which sorts before week-02/*
+    order = [result.find(marker) for marker in
+             ('CROSSWALK', 'W1A', 'W1B', 'W2A')]
+    assert order == sorted(order)
+    assert -1 not in order  # all markers present
