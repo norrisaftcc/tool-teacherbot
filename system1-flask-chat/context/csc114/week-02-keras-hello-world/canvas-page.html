@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Week 2: Keras Hello World</title>
+    <style>
+        /* Canvas-compatible CSS — inline only, no external stylesheets */
+        .module-header {
+            background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .module-header h1 { margin: 0 0 10px 0; font-size: 2.5em; font-weight: bold; }
+        .module-meta { display: flex; gap: 20px; margin-top: 15px; font-size: 0.95em; flex-wrap: wrap; }
+        .meta-item { background: rgba(255,255,255,0.2); padding: 8px 15px; border-radius: 5px; }
+        .content-section {
+            background: #f8f9fa;
+            border-left: 5px solid #1e88e5;
+            padding: 25px;
+            margin-bottom: 25px;
+            border-radius: 5px;
+        }
+        .content-section h2 { color: #1e88e5; margin-top: 0; font-size: 1.8em; border-bottom: 2px solid #1e88e5; padding-bottom: 10px; }
+        .learning-objectives { background: #e3f2fd; border-left: 5px solid #2196F3; padding: 20px; margin: 20px 0; }
+        .learning-objectives ul { margin: 10px 0; padding-left: 25px; }
+        .learning-objectives li { margin: 10px 0; line-height: 1.6; }
+        .two-track-box {
+            background: #f3e5f5;
+            border: 2px solid #9c27b0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .two-track-box h3 { margin-top: 0; color: #7b1fa2; font-size: 1.3em; }
+        .two-track-box table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .two-track-box th, .two-track-box td { padding: 10px; text-align: left; border-bottom: 1px solid #ce93d8; vertical-align: top; }
+        .two-track-box th { background: #ce93d8; color: #4a148c; }
+        .assignment-card {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .assignment-card h3 { color: #1e88e5; margin-top: 0; font-size: 1.4em; }
+        .button-primary {
+            background: #1e88e5; color: white; padding: 12px 25px; border-radius: 6px;
+            text-decoration: none; display: inline-block; margin: 10px 10px 10px 0; font-weight: bold;
+        }
+        .button-primary:hover { background: #1565c0; color: white; text-decoration: none; }
+        .button-secondary {
+            background: #6c757d; color: white; padding: 12px 25px; border-radius: 6px;
+            text-decoration: none; display: inline-block; margin: 10px 10px 10px 0; font-weight: bold;
+        }
+        .checklist { background: #fff3e0; border-left: 5px solid #ff9800; padding: 20px; margin: 20px 0; }
+        .checklist h2 { margin-top: 0; color: #e65100; font-size: 1.5em; }
+        .checklist ul { list-style: none; padding-left: 0; }
+        .checklist li { padding: 8px 0; border-bottom: 1px solid #ffcc80; }
+        .checklist li:before { content: "☐ "; font-size: 1.2em; margin-right: 10px; color: #ff9800; }
+        .tip-box { background: #e8f5e9; border: 2px solid #4caf50; border-radius: 8px; padding: 20px; margin: 20px 0; }
+        .tip-box h2 { margin-top: 0; color: #2e7d32; font-size: 1.3em; }
+        @media print {
+            .button-primary, .button-secondary { display: none; }
+            .module-header, .assignment-card { break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="module-header">
+    <h1>Week 2: Keras Hello World</h1>
+    <p style="font-size: 1.2em; margin: 10px 0;">From "what is an agent" to "what is a neural network." This week you train a real model, and you set up the workflow you'll use for the rest of the term.</p>
+    <div class="module-meta">
+        <div class="meta-item">Duration: 1 week</div>
+        <div class="meta-item">Reading: Manning Ch 1 + Ch 4 §1–2</div>
+        <div class="meta-item">Due: End of Week 2, before Monday of Week 3</div>
+    </div>
+</div>
+
+<!-- Learning Outcomes -->
+<div class="learning-objectives">
+    <h2>Learning Outcomes</h2>
+    <p><strong>By Friday of Week 2, you can:</strong></p>
+    <ul>
+        <li><strong>Explain</strong> what a neural network is at the "tensors flow through layers and weights update" level — the mechanics, not the math.</li>
+        <li><strong>Load</strong> a standard dataset (MNIST) via Keras.</li>
+        <li><strong>Build</strong> a minimal <code>Sequential</code> model and train it with <code>.fit()</code>.</li>
+        <li><strong>Read</strong> a training curve and identify whether your model is underfit, overfit, or just-right.</li>
+        <li><strong>Write up</strong> a baseline metric + one paragraph of error analysis.</li>
+    </ul>
+</div>
+
+<!-- What changes from Week 1 -->
+<div class="content-section">
+    <h2>What changes from Week 1</h2>
+    <p>Two things, and they matter:</p>
+    <ol>
+        <li><strong>Sacred Flow starts for the Code Builders track.</strong> Issue → branch → commit → PR → merge becomes the way Code Builders submit work. Prompt Masters keep submitting by drop. We split tracks here so students without a CSC-113 ramp-up aren't drowning in <code>git</code> on Day 8 of the course.</li>
+        <li><strong>Textbook reading is now real.</strong> Before Meeting A, skim Manning Ch 1; before Meeting B, Ch 4 §1–2. We're not going to lecture the textbook back to you in class.</li>
+    </ol>
+</div>
+
+<!-- Two-Track Expectations -->
+<div class="two-track-box">
+    <h3>Two-Track Expectations This Week</h3>
+    <p>Same artifact, two paths. Both tracks earn identical points on the artifact. Code Builders earn process credit for the issue/PR/retro on top.</p>
+    <table>
+        <thead>
+            <tr><th>Track</th><th>How you submit</th><th>Process artifacts</th></tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Code Builders</strong></td>
+                <td>Open a GitHub Issue (<code>Week 2 spike: &lt;your one-line description&gt;</code>) → branch off <code>main</code> named <code>week2-yourname</code> → commit notebook + write-up → open PR → request review → merge after at least one comment. PR description contains a 1-paragraph <strong>retro</strong>.</td>
+                <td>Issue + branch + PR + retro</td>
+            </tr>
+            <tr>
+                <td><strong>Prompt Masters</strong></td>
+                <td>Add the notebook + write-up to your repo via GitHub Desktop or the web "add file" button.</td>
+                <td>None — just the artifact</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- What you do this week -->
+<div class="content-section">
+    <h2>What You Do This Week</h2>
+
+    <div class="assignment-card">
+        <h3>1. Learn — Manning Ch 1 + Ch 4 framing</h3>
+        <p>Read before Meeting A. Concepts: what deep learning is, where it fits, the classification/regression framing. Low-stakes.</p>
+        <a href="/courses/[COURSE_ID]/files/[FILE_ID]" class="button-secondary">View learn.md</a>
+    </div>
+
+    <div class="assignment-card">
+        <h3>2. Practice — Hello, training loop</h3>
+        <p>Retry-OK lab. Load MNIST, build a <code>Sequential</code> model, <code>.fit()</code>, look at the loss curve. Goal: a working end-to-end training loop.</p>
+        <a href="/courses/[COURSE_ID]/files/[FILE_ID]" class="button-secondary">View practice.md</a>
+    </div>
+
+    <div class="assignment-card">
+        <h3>3. Apply — Your first spike prototype</h3>
+        <p>One narrow experiment off your practice notebook. Change one thing, measure the difference, write a baseline + 1-paragraph error analysis.</p>
+        <a href="/courses/[COURSE_ID]/files/[FILE_ID]" class="button-secondary">View apply.md</a>
+    </div>
+
+    <div class="assignment-card">
+        <h3>4. Assess — What you submit (by track)</h3>
+        <p>Graded; stakes are starting to rise but still forgiving. Two submission paths depending on track — see Two-Track Expectations above.</p>
+        <a href="/courses/[COURSE_ID]/assignments/[ASSIGNMENT_ID]" class="button-primary">View Assess Details</a>
+    </div>
+
+    <div class="assignment-card">
+        <h3>5. Knowledge Check — Vocabulary calibration</h3>
+        <p>13-question multiple choice quiz on Manning Ch 1 + Ch 4 vocabulary and the two-track Sacred Flow workflow. <strong>Unlimited attempts.</strong> Use it as a learning tool — try, read the explanation, retry.</p>
+        <a href="/courses/[COURSE_ID]/quizzes/[QUIZ_ID]" class="button-primary">Take the Knowledge Check</a>
+    </div>
+</div>
+
+<!-- Code Preview -->
+<div class="content-section">
+    <h2>Week 2 Code Preview</h2>
+    <p>Here's what your first Keras model will look like:</p>
+    <pre style="background: #263238; color: #aed581; padding: 20px; border-radius: 5px; overflow-x: auto;"><code>from tensorflow import keras
+from tensorflow.keras import layers
+
+# Load MNIST: 60k training images, 10k test images, 28x28 grayscale digits 0-9
+(x_train, y_train), (x_test, y_test) = keras.datasets.mnist.load_data()
+x_train, x_test = x_train / 255.0, x_test / 255.0   # scale pixel values to [0, 1]
+
+# Build a minimal Sequential model: flatten the image, then two dense layers
+model = keras.Sequential([
+    layers.Flatten(input_shape=(28, 28)),
+    layers.Dense(128, activation="relu"),
+    layers.Dense(10, activation="softmax"),
+])
+
+# Configure the training recipe: loss, optimizer, what to track
+model.compile(
+    optimizer="adam",
+    loss="sparse_categorical_crossentropy",
+    metrics=["accuracy"],
+)
+
+# Train for a handful of epochs and evaluate on the held-out test set
+model.fit(x_train, y_train, epochs=5)
+test_loss, test_acc = model.evaluate(x_test, y_test)
+print(f"Test accuracy: {test_acc:.3f}")</code>
+</pre>
+    <p><strong>Expected output:</strong> ~98% test accuracy after 5 epochs. That's the baseline you'll improve on in Apply.</p>
+</div>
+
+<!-- Checklist -->
+<div class="checklist">
+    <h2>Week 2 Completion Checklist</h2>
+    <ul>
+        <li>Read Manning Ch 1 before Meeting A</li>
+        <li>Read Manning Ch 4 §1–2 before Meeting B</li>
+        <li>Run the Hello-Keras notebook end-to-end (MNIST loads, model trains, accuracy prints)</li>
+        <li>Pick a spike experiment (one variable changed from baseline)</li>
+        <li>Write the spike report (baseline number, your change, what changed, 1-paragraph error analysis)</li>
+        <li><strong>Code Builders:</strong> issue opened, branch created, commits made, PR opened with retro paragraph</li>
+        <li><strong>Prompt Masters:</strong> files dropped into your repo</li>
+        <li>Take the Knowledge Check (unlimited attempts — use it as a learning tool)</li>
+    </ul>
+</div>
+
+<!-- Tips -->
+<div class="tip-box">
+    <h2>Senpai's Tips for Week 2</h2>
+    <ul>
+        <li><strong>If your environment isn't ready, fix that first.</strong> Don't try to learn Keras and fight pip at the same time. The Sacred Flow Lab from CSC-113 has detailed setup instructions.</li>
+        <li><strong>Google Colab is a legitimate path.</strong> Free GPU, zero local setup, Keras pre-installed. Use it if your laptop is fighting you.</li>
+        <li><strong>One variable at a time in your spike.</strong> Change the optimizer OR the layer count OR the learning rate — not all three. You can't learn what changed the result if you change five things at once.</li>
+        <li><strong>Read the training curve before you write the analysis.</strong> If loss is dropping smoothly and accuracy is climbing, the model is learning. If loss is flat or oscillating, something's wrong before you ever evaluate.</li>
+        <li><strong>Retros are short and honest.</strong> "Everything was new" is not a retro. "I expected SGD to be slow but it actually beat Adam on this dataset" is a retro.</li>
+    </ul>
+</div>
+
+<!-- Senpai's Note -->
+<div class="content-section" style="background: #fff8e1; border-left-color: #fbc02d;">
+    <h2 style="color: #f57f17;">Senpai's Note</h2>
+    <p style="font-size: 1.1em; line-height: 1.6;">
+        Welcome to your first real neural network. The Hello-Keras notebook is intentionally small — we're not chasing accuracy this week, we're chasing the <em>shape</em> of the workflow. You load data. You build a model. You train it. You look at numbers. You change one thing. You look at numbers again. That loop is everything in this field.
+    </p>
+    <p style="font-size: 1.1em; line-height: 1.6;">
+        If you're a Code Builder: Sacred Flow lands this week. It will feel like overhead until it doesn't. Open the issue <em>before</em> you start — that one habit is worth more than the rest of the workflow combined.
+    </p>
+    <p style="font-size: 1.1em; line-height: 1.6;">
+        If you're a Prompt Master: stay focused on the artifact. The point of your track is to keep the friction low so you can spend your energy on the AI work. We'll add workflow tools later if and when they earn their keep for you.
+    </p>
+</div>
+
+</body>
+</html>
