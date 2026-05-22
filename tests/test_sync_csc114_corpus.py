@@ -55,3 +55,15 @@ def test_apply_manifest_removes_stale_files(tmp_path):
     assert not stale.exists()
     assert not (target / 'week-99').exists()  # empty dir pruned
     assert (target / 'crosswalk.md').exists()
+
+
+def test_apply_manifest_raises_on_missing_upstream_path(tmp_path):
+    fetched = _make_fixture_upstream(tmp_path)
+    target = tmp_path / 'target'
+    target.mkdir()
+    manifest = {
+        'strip_prefix': 'planning/pilot_su26/',
+        'paths': ['planning/pilot_su26/week-99/'],  # not in fixture
+    }
+    with pytest.raises(FileNotFoundError, match='manifest path not in upstream'):
+        apply_manifest(manifest, fetched, target)
