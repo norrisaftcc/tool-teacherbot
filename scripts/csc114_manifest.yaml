@@ -11,5 +11,5 @@ target: system1-flask-chat/context/csc114
 strip_prefix: planning/pilot_su26/
 paths:
   - planning/pilot_su26/crosswalk.md
-  - planning/pilot_su26/week-01/
-  - planning/pilot_su26/week-02/
+  - planning/pilot_su26/week-01-cloud-agents/
+  - planning/pilot_su26/week-02-keras-hello-world/
