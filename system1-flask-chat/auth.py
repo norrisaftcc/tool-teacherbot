@@ -48,18 +48,21 @@ def load_group_context(group_id: str) -> str:
 
     corpus_dir = CONTEXT_DIR / group_id
     if corpus_dir.is_dir():
-        md_files = sorted(
-            (p for p in corpus_dir.rglob('*') if p.is_file()),
-            key=lambda p: p.relative_to(corpus_dir).as_posix(),
-        )
-        if md_files:
-            parts.append(f'\n=== {_corpus_label(group_id)} CORPUS ===\n')
-        for f in md_files:
-            rel = f.relative_to(corpus_dir).as_posix()
-            if f.suffix.lower() != '.md':
-                log.warning('skipping non-markdown corpus file: %s', rel)
+        md_entries: list[tuple[str, Path]] = []
+        for p in corpus_dir.rglob('*'):
+            if not p.is_file():
                 continue
-            parts.append(f'\n## {rel}\n')
-            parts.append(f.read_text())
+            rel = p.relative_to(corpus_dir).as_posix()
+            if p.suffix.lower() == '.md':
+                md_entries.append((rel, p))
+            else:
+                log.warning('skipping non-markdown corpus file: %s', rel)
+        md_entries.sort(key=lambda entry: entry[0])
+
+        if md_entries:
+            parts.append(f'\n=== {_corpus_label(group_id)} CORPUS ===\n')
+            for rel, f in md_entries:
+                parts.append(f'\n## {rel}\n')
+                parts.append(f.read_text())
 
     return ''.join(parts)

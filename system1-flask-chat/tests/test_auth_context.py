@@ -68,3 +68,25 @@ def test_missing_main_context_raises_even_if_subdir_present(tmp_path, monkeypatc
 
     with pytest.raises(FileNotFoundError):
         load_group_context('csc114')
+
+
+def test_empty_corpus_dir_does_not_emit_marker(tmp_path, monkeypatch):
+    ctx = _setup_context(tmp_path, monkeypatch)
+    (ctx / 'csc114_context.md').write_text('# Header\n')
+    (ctx / 'csc114').mkdir()  # empty
+
+    result = load_group_context('csc114')
+
+    assert result == '# Header\n'  # no spurious corpus marker
+
+
+def test_only_non_markdown_files_does_not_emit_marker(tmp_path, monkeypatch):
+    ctx = _setup_context(tmp_path, monkeypatch)
+    (ctx / 'csc114_context.md').write_text('# Header\n')
+    (ctx / 'csc114').mkdir()
+    (ctx / 'csc114' / 'diagram.png').write_bytes(b'\x89PNG fake')
+
+    result = load_group_context('csc114')
+
+    assert 'CORPUS ===' not in result
+    assert result == '# Header\n'
