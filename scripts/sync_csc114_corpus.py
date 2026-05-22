@@ -42,10 +42,10 @@ def apply_manifest(manifest: dict[str, Any], fetched_root: Path, target: Path) -
 
     for rel in manifest['paths']:
         src = fetched_root / rel
-        if not src.exists():
-            raise FileNotFoundError(f'manifest path not in upstream: {rel}')
         if src.is_symlink():
             raise ValueError(f'manifest path is a symlink (refusing to follow): {rel}')
+        if not src.exists():
+            raise FileNotFoundError(f'manifest path not in upstream: {rel}')
 
         rel_path = Path(rel)
         if prefix_path and rel_path.is_relative_to(prefix_path):
