@@ -58,3 +58,13 @@ def test_concatenation_order_is_sorted_by_relative_path(tmp_path, monkeypatch):
              ('CROSSWALK', 'W1A', 'W1B', 'W2A')]
     assert order == sorted(order)
     assert -1 not in order  # all markers present
+
+
+def test_missing_main_context_raises_even_if_subdir_present(tmp_path, monkeypatch):
+    ctx = _setup_context(tmp_path, monkeypatch)
+    (ctx / 'csc114').mkdir()
+    (ctx / 'csc114' / 'crosswalk.md').write_text('CROSSWALK\n')
+    # NB: no csc114_context.md
+
+    with pytest.raises(FileNotFoundError):
+        load_group_context('csc114')
