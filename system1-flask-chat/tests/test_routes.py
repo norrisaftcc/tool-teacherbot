@@ -3,10 +3,10 @@ import json
 from unittest.mock import patch
 
 
-def login(client, group_id='group1', password='capstone2026'):
+def login(client, group_id='csc114', password='2026su'):
     import auth
     from pathlib import Path
-    # Use real context dir which has group1_context.md
+    # Use real context dir which has csc114_context.md
     return client.post('/login', data={'group_id': group_id, 'password': password})
 
 
@@ -18,7 +18,7 @@ def test_chat_page_requires_login(client):
 def test_chat_page_loads_after_login(client, tmp_path, monkeypatch):
     import auth
     monkeypatch.setattr(auth, 'CONTEXT_DIR', tmp_path)
-    (tmp_path / 'group1_context.md').write_text('# Test context')
+    (tmp_path / 'csc114_context.md').write_text('# Test context')
     login(client)
     response = client.get('/chat')
     assert response.status_code == 200
@@ -32,7 +32,7 @@ def test_api_chat_requires_login(client):
 def test_api_chat_returns_json(client, tmp_path, monkeypatch):
     import auth
     monkeypatch.setattr(auth, 'CONTEXT_DIR', tmp_path)
-    (tmp_path / 'group1_context.md').write_text('# Test context')
+    (tmp_path / 'csc114_context.md').write_text('# Test context')
     login(client)
     with patch('routes.get_claude_response', return_value=('Claude says hi', 100)):
         response = client.post('/api/chat',
@@ -47,7 +47,7 @@ def test_api_chat_returns_json(client, tmp_path, monkeypatch):
 def test_api_chat_returns_error_on_api_failure(client, tmp_path, monkeypatch):
     import auth
     monkeypatch.setattr(auth, 'CONTEXT_DIR', tmp_path)
-    (tmp_path / 'group1_context.md').write_text('# Test context')
+    (tmp_path / 'csc114_context.md').write_text('# Test context')
     login(client)
     with patch('routes.get_claude_response', side_effect=RuntimeError('API down')):
         response = client.post('/api/chat',
@@ -62,11 +62,11 @@ def test_api_chat_blocks_when_budget_exhausted(client, tmp_path, monkeypatch):
     import auth
     from models import db, Group
     monkeypatch.setattr(auth, 'CONTEXT_DIR', tmp_path)
-    (tmp_path / 'group1_context.md').write_text('# Test context')
+    (tmp_path / 'csc114_context.md').write_text('# Test context')
     login(client)
     # Exhaust the budget
     with client.application.app_context():
-        group = Group.query.filter_by(name='group1').first()
+        group = Group.query.filter_by(name='csc114').first()
         if group:
             group.tokens_used = group.token_budget
             db.session.commit()
