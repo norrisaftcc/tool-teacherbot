@@ -36,21 +36,28 @@ def apply_manifest(manifest: dict[str, Any], fetched_root: Path, target: Path) -
 
     Returns a small summary dict: {'files': N, 'bytes': M}.
     """
-    strip_prefix = manifest.get('strip_prefix', '')
+    strip_prefix = manifest.get('strip_prefix', '') or ''
+    prefix_path = Path(strip_prefix) if strip_prefix else None
     written: set[Path] = set()
 
     for rel in manifest['paths']:
         src = fetched_root / rel
         if not src.exists():
             raise FileNotFoundError(f'manifest path not in upstream: {rel}')
+        if src.is_symlink():
+            raise ValueError(f'manifest path is a symlink (refusing to follow): {rel}')
 
-        dest_rel = rel
-        if strip_prefix and dest_rel.startswith(strip_prefix):
-            dest_rel = dest_rel[len(strip_prefix):]
+        rel_path = Path(rel)
+        if prefix_path and rel_path.is_relative_to(prefix_path):
+            dest_rel = rel_path.relative_to(prefix_path)
+        else:
+            dest_rel = rel_path
         dest = target / dest_rel
 
         if src.is_dir():
             for child in src.rglob('*'):
+                if child.is_symlink():
+                    continue
                 if child.is_file():
                     out = dest / child.relative_to(src)
                     out.parent.mkdir(parents=True, exist_ok=True)
