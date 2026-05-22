@@ -1,6 +1,7 @@
 import json
 from flask import Blueprint, render_template, redirect, url_for, session, request, flash, jsonify, current_app, Response, stream_with_context
 from functools import wraps
+from auth import load_group_context
 from claude_handler import get_claude_response, stream_claude_response
 
 main = Blueprint('main', __name__)
@@ -38,13 +39,14 @@ def login():
             return render_template('login.html'), 200
 
         try:
-            context = load_group_context(group_id)
+            # Validate the context exists at login (don't store the result —
+            # the corpus is too large for Flask's signed-cookie session).
+            load_group_context(group_id)
         except FileNotFoundError as e:
             flash(str(e))
             return render_template('login.html'), 200
 
         session['group_id'] = group_id
-        session['group_context'] = context
         session['clearance'] = group_data['clearance']
 
         # Ensure Group row exists in DB
@@ -84,8 +86,9 @@ def api_chat():
         return jsonify({'error': 'Token budget exhausted. Contact your instructor.'}), 403
 
     try:
+        group_context = load_group_context(session['group_id'])
         response_text, tokens_used = get_claude_response(
-            session['group_context'], history, user_message
+            group_context, history, user_message
         )
     except RuntimeError as e:
         return jsonify({'error': str(e)}), 502
@@ -134,8 +137,8 @@ def api_chat_stream():
     if group and group.tokens_remaining <= 0:
         return jsonify({'error': 'Token budget exhausted. Contact your instructor.'}), 403
 
-    group_context = session['group_context']
     group_id = session['group_id']
+    group_context = load_group_context(group_id)
 
     def generate():
         full_text = ''
