@@ -35,3 +35,23 @@ def test_apply_manifest_copies_listed_paths(tmp_path):
     assert (target / 'week-01' / 'lesson.md').read_text() == '# W1\n'
     assert (target / 'week-02' / 'lesson.md').read_text() == '# W2\n'
     assert not (target / 'unrelated.md').exists()
+
+
+def test_apply_manifest_removes_stale_files(tmp_path):
+    fetched = _make_fixture_upstream(tmp_path)
+    target = tmp_path / 'target'
+    target.mkdir()
+    # A stale file from a previous sync that the new manifest does not include:
+    stale = target / 'week-99' / 'old.md'
+    stale.parent.mkdir(parents=True)
+    stale.write_text('removed upstream')
+
+    manifest = {
+        'strip_prefix': 'planning/pilot_su26/',
+        'paths': ['planning/pilot_su26/crosswalk.md'],
+    }
+    apply_manifest(manifest, fetched, target)
+
+    assert not stale.exists()
+    assert not (target / 'week-99').exists()  # empty dir pruned
+    assert (target / 'crosswalk.md').exists()
