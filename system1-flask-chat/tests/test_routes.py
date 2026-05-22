@@ -4,9 +4,8 @@ from unittest.mock import patch
 
 
 def login(client, group_id='csc114', password='2026su'):
-    import auth
-    from pathlib import Path
-    # Use real context dir which has csc114_context.md
+    # Callers must monkeypatch auth.CONTEXT_DIR before calling login()
+    # (or accept the FileNotFoundError if no fixture file exists).
     return client.post('/login', data={'group_id': group_id, 'password': password})
 
 
