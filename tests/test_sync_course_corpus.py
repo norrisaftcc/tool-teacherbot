@@ -1,7 +1,59 @@
 from pathlib import Path
 import pytest
+import yaml
 
-from scripts.sync_course_corpus import apply_manifest
+from scripts.sync_course_corpus import apply_manifest, load_manifest
+
+
+def test_both_course_manifests_load_and_share_schema():
+    """Sanity check that both manifests parse and expose the required
+    keys the sync script consumes — protects against a manifest typo
+    silently breaking future runs."""
+    root = Path(__file__).resolve().parent.parent / 'scripts'
+    required = {'upstream', 'ref', 'target', 'paths', 'strip_prefix'}
+    for name in ('csc114_manifest.yaml', 'csc134_manifest.yaml'):
+        data = load_manifest(root / name)
+        assert required <= set(data.keys()), f'{name} missing keys'
+        assert isinstance(data['paths'], list) and data['paths']
+        assert data['upstream'].startswith('https://github.com/')
+
+
+def test_csc134_manifest_uses_haiku_target_dir(tmp_path):
+    """The CSC 134 manifest must land its corpus in context/csc134/
+    (not the CSC 114 dir — a copy-paste error would silently overwrite)."""
+    root = Path(__file__).resolve().parent.parent / 'scripts'
+    data = yaml.safe_load((root / 'csc134_manifest.yaml').read_text())
+    assert data['target'].rstrip('/').endswith('/csc134')
+    assert '/csc114' not in data['target']
+
+
+def test_apply_manifest_works_for_csc134_shape(tmp_path):
+    """Run the sync end-to-end against a fake upstream mirroring the
+    CSC 134 manifest layout — proves the generalized script really is
+    manifest-agnostic."""
+    upstream = tmp_path / 'fake_csc134_upstream'
+    (upstream / 'planning' / 'pilot_su26' / 'week-01').mkdir(parents=True)
+    (upstream / 'planning' / 'pilot_su26' / 'week-02').mkdir(parents=True)
+    (upstream / 'planning' / 'pilot_su26' / 'crosswalk.md').write_text('# 134\n')
+    (upstream / 'planning' / 'pilot_su26' / 'week-01' / 'l.md').write_text('# 134 w1\n')
+    (upstream / 'planning' / 'pilot_su26' / 'week-02' / 'l.md').write_text('# 134 w2\n')
+
+    target = tmp_path / 'target_csc134'
+    target.mkdir()
+    manifest = {
+        'strip_prefix': 'planning/pilot_su26/',
+        'paths': [
+            'planning/pilot_su26/crosswalk.md',
+            'planning/pilot_su26/week-01/',
+            'planning/pilot_su26/week-02/',
+        ],
+    }
+    summary = apply_manifest(manifest, upstream, target)
+
+    assert (target / 'crosswalk.md').read_text() == '# 134\n'
+    assert (target / 'week-01' / 'l.md').exists()
+    assert (target / 'week-02' / 'l.md').exists()
+    assert summary['files'] == 3
 
 
 def _make_fixture_upstream(tmp_path: Path) -> Path:
