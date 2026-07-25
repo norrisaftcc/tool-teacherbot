@@ -1,14 +1,6 @@
 # tests/test_auth.py
 import pytest
-from auth import (
-    SKINS,
-    authenticate_skin,
-    load_skin_context,
-    # compat aliases (deleted in T8)
-    GROUPS,
-    authenticate_group,
-    load_group_context,
-)
+from auth import SKINS, authenticate_skin, load_skin_context
 
 
 # ---- new-contract (SKINS) --------------------------------------------------
@@ -73,22 +65,3 @@ def test_load_skin_context_unknown_slug_raises():
         load_skin_context('bogus')
 
 
-# ---- compat aliases (removed in T8) ---------------------------------------
-
-def test_compat_authenticate_group_still_works():
-    g = authenticate_group('csc114', '2026su')
-    assert g is not None
-    assert g['clearance'] == 'ORANGE'
-
-
-def test_compat_load_group_context_csc114(tmp_path, monkeypatch):
-    import auth
-    monkeypatch.setattr(auth, 'CONTEXT_DIR', tmp_path)
-    (tmp_path / 'csc114_context.md').write_text('# CSC 114')
-    result = load_group_context('csc114')
-    assert '# CSC 114' in result
-
-
-def test_compat_groups_keyset_unchanged():
-    # csc134 is deliberately absent from the compat map — it uses SKINS.
-    assert set(GROUPS.keys()) == {'csc114', 'group2', 'group3', 'group4', 'group5'}
