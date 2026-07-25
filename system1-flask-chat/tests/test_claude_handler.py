@@ -1,6 +1,11 @@
 # tests/test_claude_handler.py
 from unittest.mock import MagicMock, patch
-from claude_handler import build_system_prompt, get_claude_response
+import claude_handler
+from claude_handler import (
+    build_system_prompt,
+    get_claude_response,
+    stream_claude_response,
+)
 
 SAMPLE_CONTEXT = """
 # Group 1 Context
@@ -77,3 +82,47 @@ def test_get_claude_response_empty_history():
         assert len(messages) == 1
         assert messages[0]['role'] == 'user'
         assert tokens == 30
+
+
+def _mock_message(text='ok', in_tokens=1, out_tokens=1):
+    m = MagicMock()
+    m.content = [MagicMock(text=text)]
+    m.usage.input_tokens = in_tokens
+    m.usage.output_tokens = out_tokens
+    return m
+
+
+def test_get_claude_response_uses_default_model_when_not_specified():
+    mock_client = MagicMock()
+    mock_client.messages.create.return_value = _mock_message()
+    with patch('claude_handler.client', mock_client):
+        get_claude_response(SAMPLE_CONTEXT, [], 'Hello')
+        assert mock_client.messages.create.call_args.kwargs['model'] == claude_handler.MODEL
+
+
+def test_get_claude_response_passes_explicit_model():
+    mock_client = MagicMock()
+    mock_client.messages.create.return_value = _mock_message()
+    with patch('claude_handler.client', mock_client):
+        get_claude_response(SAMPLE_CONTEXT, [], 'Hello', model='claude-haiku-4-5-20251001')
+        assert mock_client.messages.create.call_args.kwargs['model'] == 'claude-haiku-4-5-20251001'
+
+
+def test_stream_claude_response_passes_explicit_model():
+    mock_client = MagicMock()
+    fake_stream = MagicMock()
+    fake_stream.text_stream = iter(['chunk1', 'chunk2'])
+    final = MagicMock()
+    final.usage.input_tokens = 3
+    final.usage.output_tokens = 4
+    fake_stream.get_final_message.return_value = final
+    mock_client.messages.stream.return_value.__enter__.return_value = fake_stream
+    mock_client.messages.stream.return_value.__exit__.return_value = False
+
+    with patch('claude_handler.client', mock_client):
+        chunks = list(stream_claude_response(
+            SAMPLE_CONTEXT, [], 'Hello', model='claude-haiku-4-5-20251001'
+        ))
+    assert mock_client.messages.stream.call_args.kwargs['model'] == 'claude-haiku-4-5-20251001'
+    # final tuple is ('', total_tokens)
+    assert chunks[-1] == ('', 7)

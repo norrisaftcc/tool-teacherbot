@@ -38,6 +38,7 @@ def get_claude_response(
     group_context: str,
     history: list[dict],
     user_message: str,
+    model: str | None = None,
 ) -> tuple[str, int]:
     """
     Call Claude with context and conversation history.
@@ -46,6 +47,7 @@ def get_claude_response(
         group_context: The group's project context markdown string
         history: List of {'role': 'user'|'assistant', 'content': str} dicts
         user_message: The new message from the student
+        model: Anthropic model id; defaults to module-level MODEL when omitted.
 
     Returns:
         (response_text, total_tokens_used)
@@ -54,7 +56,7 @@ def get_claude_response(
 
     try:
         response = client.messages.create(
-            model=MODEL,
+            model=model or MODEL,
             max_tokens=MAX_TOKENS,
             system=build_system_prompt(group_context),
             messages=messages,
@@ -71,6 +73,7 @@ def stream_claude_response(
     group_context: str,
     history: list[dict],
     user_message: str,
+    model: str | None = None,
 ) -> Generator[tuple[str, int], None, None]:
     """
     Stream Claude response token by token.
@@ -82,7 +85,7 @@ def stream_claude_response(
 
     try:
         with client.messages.stream(
-            model=MODEL,
+            model=model or MODEL,
             max_tokens=MAX_TOKENS,
             system=build_system_prompt(group_context),
             messages=messages,
