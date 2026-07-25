@@ -7,10 +7,12 @@ import pytest
 
 @pytest.fixture
 def csc114_ctx(tmp_path, monkeypatch):
-    """Point auth.CONTEXT_DIR at a tmp dir with a minimal csc114 header."""
+    """Point auth.CONTEXT_DIR at a tmp dir with a minimal csc114 header
+    and persona — login validates both."""
     import auth
     monkeypatch.setattr(auth, 'CONTEXT_DIR', tmp_path)
     (tmp_path / 'csc114_context.md').write_text('# csc114 test context')
+    (tmp_path / 'csc114_persona.md').write_text('# csc114 test persona')
     return tmp_path
 
 

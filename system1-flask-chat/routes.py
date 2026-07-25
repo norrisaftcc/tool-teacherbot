@@ -77,7 +77,7 @@ def skin_blueprint(slug: str) -> Blueprint:
 
     @bp.route('/login', methods=['POST'], endpoint='do_login')
     def do_login():
-        from auth import authenticate_skin, load_skin_context
+        from auth import authenticate_skin, load_skin_context, load_skin_persona
         from models import db, Group
 
         password = (request.form.get('password') or '').strip()
@@ -91,12 +91,14 @@ def skin_blueprint(slug: str) -> Blueprint:
                 login_action=_login_action(),
             ), 200
 
-        # Validate the cohort header/corpus loads now so we surface any
-        # FileNotFoundError before the user reaches /chat. We do NOT cache
-        # the context in the session — see api_chat / api_chat_stream,
-        # which reload it per request. (The corpus is ~40KB on disk and
-        # would blow past the 4KB signed-cookie limit if we stored it.)
+        # Validate the persona and cohort header/corpus load now so we
+        # surface any FileNotFoundError before the user reaches /chat. We
+        # do NOT cache either in the session — see api_chat /
+        # api_chat_stream, which reload them per request. (The windowed
+        # corpus is tens of KB and would blow past the 4KB signed-cookie
+        # limit if we stored it.)
         try:
+            load_skin_persona(slug)
             load_skin_context(slug)
         except FileNotFoundError as e:
             flash(str(e))
@@ -133,7 +135,7 @@ def skin_blueprint(slug: str) -> Blueprint:
     @bp.route('/api/chat', methods=['POST'], endpoint='api_chat')
     @require_login
     def api_chat():
-        from auth import load_skin_context
+        from auth import load_skin_context, load_skin_persona
         from models import db, Group, Conversation, Message
 
         data = request.get_json(silent=True) or {}
@@ -150,7 +152,8 @@ def skin_blueprint(slug: str) -> Blueprint:
 
         try:
             response_text, tokens_used = get_claude_response(
-                load_skin_context(slug), history, user_message, model=skin['model'],
+                load_skin_context(slug), history, user_message,
+                model=skin['model'], persona=load_skin_persona(slug),
             )
         except RuntimeError as e:
             return jsonify({'error': str(e)}), 502
@@ -183,7 +186,7 @@ def skin_blueprint(slug: str) -> Blueprint:
     @bp.route('/api/chat/stream', methods=['POST'], endpoint='api_chat_stream')
     @require_login
     def api_chat_stream():
-        from auth import load_skin_context
+        from auth import load_skin_context, load_skin_persona
         from models import db, Group, Conversation, Message
 
         data = request.get_json(silent=True) or {}
@@ -198,7 +201,10 @@ def skin_blueprint(slug: str) -> Blueprint:
         if group and group.tokens_remaining <= 0:
             return jsonify({'error': 'Token budget exhausted. Contact your instructor.'}), 403
 
+        # Read both outside generate() — the generator body runs after the
+        # request context is torn down.
         skin_context = load_skin_context(slug)
+        skin_persona = load_skin_persona(slug)
         model = skin['model']
 
         def generate():
@@ -206,7 +212,8 @@ def skin_blueprint(slug: str) -> Blueprint:
             total_tokens = 0
             try:
                 for chunk, tokens in stream_claude_response(
-                    skin_context, history, user_message, model=model,
+                    skin_context, history, user_message,
+                    model=model, persona=skin_persona,
                 ):
                     if chunk:
                         full_text += chunk

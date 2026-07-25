@@ -8,11 +8,13 @@ import pytest
 
 @pytest.fixture
 def both_contexts(tmp_path, monkeypatch):
-    """Mount tmp CONTEXT_DIR with headers for both skins."""
+    """Mount tmp CONTEXT_DIR with headers and personas for both skins."""
     import auth
     monkeypatch.setattr(auth, 'CONTEXT_DIR', tmp_path)
     (tmp_path / 'csc114_context.md').write_text('# csc114 header')
     (tmp_path / 'csc134_context.md').write_text('# csc134 header')
+    (tmp_path / 'csc114_persona.md').write_text('# csc114 persona')
+    (tmp_path / 'csc134_persona.md').write_text('# csc134 persona')
     return tmp_path
 
 
@@ -104,6 +106,34 @@ def test_api_chat_calls_handler_with_csc134_haiku_model(client, both_contexts):
         assert _bound_arg(mocked.call_args, 'group_context')
 
 
+@pytest.mark.parametrize('slug', ['csc114', 'csc134'])
+def test_api_chat_sends_each_skins_own_persona(client, both_contexts, slug):
+    """ADR-0002: the persona is per-skin. A route that dropped the kwarg
+    would silently fall back to the generic persona for every cohort."""
+    from auth import SKINS
+    _login(client, slug, SKINS[slug]['password'])
+    with patch('routes.get_claude_response', return_value=('ok', 5)) as mocked:
+        client.post(
+            f'/{slug}/api/chat',
+            json={'message': 'hi', 'history': []},
+            content_type='application/json',
+        )
+    assert _bound_arg(mocked.call_args, 'persona') == f'# {slug} persona'
+
+
+def test_login_rejected_when_persona_file_missing(client, tmp_path, monkeypatch):
+    """A missing persona must surface at login, not as a 500 on first
+    message — same contract the cohort header already had."""
+    import auth
+    monkeypatch.setattr(auth, 'CONTEXT_DIR', tmp_path)
+    (tmp_path / 'csc114_context.md').write_text('# csc114 header')
+    # no csc114_persona.md
+
+    r = _login(client, 'csc114', '2026su')
+    assert r.status_code == 200
+    assert b'Persona missing' in r.data
+
+
 # ---- cross-skin isolation ----------------------------------------------
 
 def test_cross_skin_session_redirects_to_correct_skin_login(client, both_contexts):
@@ -149,12 +179,14 @@ def test_login_cookie_stays_under_browser_limit_with_large_corpus(client, tmp_pa
     dropped the cookie, so /csc114/chat re-redirected to login (loop).
     The session must not carry the full corpus."""
     import auth
+    from auth import SKINS
     monkeypatch.setattr(auth, 'CONTEXT_DIR', tmp_path)
     (tmp_path / 'csc114_context.md').write_text('# csc114 header')
-    corpus = tmp_path / 'csc114'
-    corpus.mkdir()
+    (tmp_path / 'csc114_persona.md').write_text('# csc114 persona')
+    module = tmp_path / 'csc114' / SKINS['csc114']['active_module']
+    module.mkdir(parents=True)
     for i in range(30):
-        (corpus / f'week-{i:02d}.md').write_text('x' * 2000)  # ~60KB total corpus
+        (module / f'lesson-{i:02d}.md').write_text('x' * 2000)  # ~60KB in-window
 
     r = client.post('/csc114/login', data={'password': '2026su'})
     assert r.status_code == 302

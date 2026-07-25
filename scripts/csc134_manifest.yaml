@@ -7,12 +7,17 @@ ref: main
 target: system1-flask-chat/context/csc134
 
 # Paths under the upstream repo to copy into target/.
-# The `planning/pilot_su26/` prefix is stripped from destination paths,
-# so `planning/pilot_su26/crosswalk.md` lands at `target/crosswalk.md`.
-# These are placeholders mirroring the CSC 114 planning shape; the
-# CSC 134 course lead should trim/expand as the template repo populates.
-strip_prefix: planning/pilot_su26/
+#
+# Vendoring is deliberately wider than what reaches the system prompt:
+# auth.py windows the corpus to `corpus_index` plus one `active_module`
+# (ADR-0002), so everything below sits on disk ready for the week it
+# becomes current. The full tree is ~424KB (~106k tokens) — loading all
+# of it on every message is what the window exists to prevent.
+#
+# `instructor-guide/` is deliberately NOT vendored: this is a
+# student-facing bot.
+strip_prefix: ''
 paths:
-  - planning/pilot_su26/crosswalk.md
-  - planning/pilot_su26/week-01/
-  - planning/pilot_su26/week-02/
+  - outline/
+  - modules/
+  - assignments/
