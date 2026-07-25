@@ -20,7 +20,7 @@ form.addEventListener('submit', async (e) => {
   const bubble = appendStreamingMessage();
 
   try {
-    const res = await fetch('/api/chat/stream', {
+    const res = await fetch(`/${window.SKIN_SLUG}/api/chat/stream`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message, history: history.slice(0, -1) }),

@@ -1,12 +1,21 @@
 {% extends "base.html" %}
-{% block title %}Login — AlgoCratic TA{% endblock %}
+{% block title %}{{ slug | upper }} — Login — Teacherbot{% endblock %}
+
+{% block breadcrumb %}
+<span>PORTAL</span><span class="sep">/</span>
+<span>TA SYSTEMS</span><span class="sep">/</span>
+<span>{{ slug | upper }}</span><span class="sep">/</span>
+<span class="now">LOGIN</span>
+{% endblock %}
 
 {% block content %}
 <div style="display:flex;align-items:center;justify-content:center;height:100%;flex:1;">
   <div style="width:360px;">
-    <div class="eyebrow" style="text-align:center;margin-bottom:var(--space-3);">DOCUMENT: AF-AUTH-2026</div>
+    <div class="eyebrow" style="text-align:center;margin-bottom:var(--space-3);">DOCUMENT: AF-AUTH-2026 · {{ slug | upper }}</div>
     <h1 style="text-align:center;font-size:var(--text-2xl);margin-bottom:var(--space-2);">IDENTIFY</h1>
-    <p class="display-script" style="text-align:center;font-size:var(--text-xl);margin-bottom:var(--space-5);">yourself</p>
+    <p class="display-script" style="text-align:center;font-size:var(--text-xl);margin-bottom:var(--space-3);">yourself</p>
+    <p style="text-align:center;font-family:var(--font-mono);font-size:11px;color:var(--cream-muted);margin-bottom:var(--space-5);">{{ skin.display }}</p>
+
     {% with messages = get_flashed_messages() %}
       {% if messages %}
         {% for msg in messages %}
@@ -14,18 +23,18 @@
         {% endfor %}
       {% endif %}
     {% endwith %}
-    <form method="post" action="/login" style="display:flex;flex-direction:column;gap:var(--space-3);">
+
+    <form method="post" action="{{ login_action }}" style="display:flex;flex-direction:column;gap:var(--space-3);">
       <div>
-        <label class="label" style="display:block;margin-bottom:var(--space-1);">Group ID</label>
-        <input type="text" name="group_id" placeholder="group1" required style="width:100%;box-sizing:border-box;">
-      </div>
-      <div>
-        <label class="label" style="display:block;margin-bottom:var(--space-1);">Passphrase</label>
-        <input type="password" name="password" placeholder="••••••••" required style="width:100%;box-sizing:border-box;">
+        <label class="label" style="display:block;margin-bottom:var(--space-1);">Cohort Passphrase</label>
+        <input type="password" name="password" placeholder="••••••••" required autofocus style="width:100%;box-sizing:border-box;">
       </div>
       <button type="submit" class="btn btn--primary" style="width:100%;margin-top:var(--space-2);">Authenticate</button>
     </form>
-    <p class="fine-print" style="text-align:center;margin-top:var(--space-5);">The Algorithm is watching. Unauthorized access will be logged.</p>
+    <p style="text-align:center;margin-top:var(--space-4);font-family:var(--font-mono);font-size:11px;">
+      <a href="{{ url_for('main.index') }}" style="color:var(--cream-muted);">&larr; different cohort</a>
+    </p>
+    <p class="fine-print" style="text-align:center;margin-top:var(--space-4);">The Algorithm is watching. Unauthorized access will be logged.</p>
   </div>
 </div>
 {% endblock %}

@@ -4,7 +4,7 @@
 {% block breadcrumb %}
 <span>PORTAL</span><span class="sep">/</span>
 <span>TA SYSTEMS</span><span class="sep">/</span>
-<span>SYSTEM 1</span><span class="sep">/</span>
+<span>{{ slug | upper }}</span><span class="sep">/</span>
 <span class="now">ADMIN</span>
 {% endblock %}
 
@@ -17,12 +17,15 @@
 {% block content %}
 <div style="flex:1;overflow-y:auto;padding:var(--space-6) var(--space-6);min-height:0;">
 
-  <div class="eyebrow" style="margin-bottom:var(--space-3);">DOCUMENT: AF-ADMIN-2026</div>
-  <h1 style="font-size:var(--text-2xl);margin-bottom:var(--space-5);">INSTRUCTOR DASHBOARD</h1>
+  <div class="eyebrow" style="margin-bottom:var(--space-3);">DOCUMENT: AF-ADMIN-2026 · {{ slug | upper }}</div>
+  <h1 style="font-size:var(--text-2xl);margin-bottom:var(--space-2);">INSTRUCTOR DASHBOARD</h1>
+  <p style="font-family:var(--font-mono);font-size:11px;color:var(--cream-muted);margin-bottom:var(--space-5);letter-spacing:0.06em;">
+    {{ skin.display }} &middot; model <code>{{ skin.model }}</code>
+  </p>
 
   <!-- Groups section -->
   <h2 style="font-family:var(--font-mono);font-size:var(--text-sm);font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--cream-muted);margin-bottom:var(--space-4);border-bottom:1px solid var(--ink-muted);padding-bottom:var(--space-2);">
-    COHORT GROUPS · {{ groups | length }} TOTAL
+    COHORT USAGE · {{ slug | upper }}
   </h2>
 
   {% if groups %}

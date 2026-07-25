@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Select cohort — Teacherbot{% endblock %}
+
+{% block breadcrumb %}
+<span>PORTAL</span><span class="sep">/</span>
+<span>TA SYSTEMS</span><span class="sep">/</span>
+<span class="now">SELECT COHORT</span>
+{% endblock %}
+
+{% block content %}
+<div style="display:flex;align-items:center;justify-content:center;height:100%;flex:1;">
+  <div style="width:520px;">
+    <div class="eyebrow" style="text-align:center;margin-bottom:var(--space-3);">DOCUMENT: AF-COHORT-2026</div>
+    <h1 style="text-align:center;font-size:var(--text-2xl);margin-bottom:var(--space-2);">CHOOSE</h1>
+    <p class="display-script" style="text-align:center;font-size:var(--text-xl);margin-bottom:var(--space-5);">your cohort</p>
+
+    {% if active_slug %}
+      <div style="background:var(--teal-tint);border:1px solid var(--teal);color:var(--teal);padding:var(--space-2) var(--space-3);margin-bottom:var(--space-4);font-family:var(--font-mono);font-size:var(--text-xs);letter-spacing:0.06em;">
+        &#9650; ACTIVE SESSION · <strong>{{ active_slug | upper }}</strong> ·
+        <a href="{{ url_for('main.logout') }}" style="color:inherit;">logout</a>
+      </div>
+    {% endif %}
+
+    <ul class="group-list" style="list-style:none;padding:0;margin:0;">
+      {% for slug, s in skins.items() %}
+      <li style="margin-bottom:var(--space-3);">
+        <a href="/{{ slug }}/" class="group-row" style="text-decoration:none;color:inherit;display:block;padding:var(--space-4);border:1px solid var(--ink-muted);background:var(--ink-raised);">
+          <div class="group-row__head">
+            <span class="group-row__name">{{ slug | upper }}</span>
+            <span class="group-row__clearance clearance--{{ s.clearance | lower }}">&#9679; {{ s.clearance | upper }}</span>
+          </div>
+          <div class="group-row__project" style="margin-top:6px;">{{ s.display }}</div>
+          <div class="group-row__alias" style="margin-top:4px;color:var(--cream-muted);font-family:var(--font-mono);font-size:11px;">
+            {{ s.tagline }} &middot; model: <code>{{ s.model }}</code>
+          </div>
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+
+    <p class="fine-print" style="text-align:center;margin-top:var(--space-5);">The Algorithm is watching. Unauthorized access will be logged.</p>
+  </div>
+</div>
+{% endblock %}

@@ -4,7 +4,7 @@
 {% block breadcrumb %}
 <span>PORTAL</span><span class="sep">/</span>
 <span>TA SYSTEMS</span><span class="sep">/</span>
-<span>SYSTEM 1</span><span class="sep">/</span>
+<span>{{ slug | upper }}</span><span class="sep">/</span>
 <span class="now">ADMIN ACCESS</span>
 {% endblock %}
 
@@ -19,7 +19,7 @@
       &#9650; RESTRICTED ZONE · INSTRUCTOR CREDENTIALS REQUIRED
     </div>
 
-    <form method="get" action="/admin" style="display:flex;flex-direction:column;gap:var(--space-3);">
+    <form method="get" action="{{ admin_action }}" style="display:flex;flex-direction:column;gap:var(--space-3);">
       <div>
         <label class="label" style="display:block;margin-bottom:var(--space-1);">Admin Password</label>
         <input type="password" name="password" placeholder="••••••••" required style="width:100%;box-sizing:border-box;">

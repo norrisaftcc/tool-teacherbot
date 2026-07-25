@@ -29,16 +29,21 @@ def create_app(test_config=None):
     # Extensions
     db.init_app(app)
     login_manager.init_app(app)
-    login_manager.login_view = 'main.login'
+    login_manager.login_view = 'main.index'
 
     # user_loader required by flask_login even though auth is session-based
     @login_manager.user_loader
     def load_user(user_id):
         return None
 
-    # Blueprint (imported here to avoid circular imports)
-    from routes import main
+    # Blueprints (imported here to avoid circular imports).
+    # `main` owns the root picker + logout; each skin gets its own blueprint
+    # registered at /<slug> so URL is the source of truth for cohort + model.
+    from routes import main, skin_blueprint
+    from auth import SKINS
     app.register_blueprint(main)
+    for slug in SKINS:
+        app.register_blueprint(skin_blueprint(slug), url_prefix=f'/{slug}')
 
     # Create tables
     with app.app_context():
