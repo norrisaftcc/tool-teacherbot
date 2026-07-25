@@ -100,7 +100,92 @@ def test_apply_manifest_copies_listed_paths(tmp_path):
         'bytes': sum((target / p).stat().st_size for p in (
             'crosswalk.md', 'week-01/lesson.md', 'week-02/lesson.md'
         )),
+        'excluded': 0,
     }
+
+
+def test_exclude_skips_instructor_files_inside_copied_dirs(tmp_path):
+    """A course repo keeps answer keys next to the readings they answer.
+    Vendoring one puts it in a student-facing bot's system prompt."""
+    fetched = _make_fixture_upstream(tmp_path)
+    week = fetched / 'planning' / 'pilot_su26' / 'week-01'
+    (week / 'exit-ticket-key.md').write_text('# ANSWER KEY — do not hand to students')
+    (week / '_assess-spec.STUB.md').write_text('# unauthored skeleton')
+
+    target = tmp_path / 'target'
+    target.mkdir()
+    manifest = {
+        'strip_prefix': 'planning/pilot_su26/',
+        'paths': ['planning/pilot_su26/week-01/'],
+        'exclude': ['**/*-key.md', '**/*.STUB.md'],
+    }
+    summary = apply_manifest(manifest, fetched, target)
+
+    assert (target / 'week-01' / 'lesson.md').exists()
+    assert not (target / 'week-01' / 'exit-ticket-key.md').exists()
+    assert not (target / 'week-01' / '_assess-spec.STUB.md').exists()
+    assert summary['excluded'] == 2
+
+
+def test_exclude_skips_a_directly_listed_path(tmp_path):
+    """Exclusion applies to explicit manifest entries too, not just files
+    swept up by a directory copy."""
+    fetched = _make_fixture_upstream(tmp_path)
+    (fetched / 'planning' / 'pilot_su26' / 'solutions-key.md').write_text('# key')
+
+    target = tmp_path / 'target'
+    target.mkdir()
+    manifest = {
+        'strip_prefix': 'planning/pilot_su26/',
+        'paths': [
+            'planning/pilot_su26/crosswalk.md',
+            'planning/pilot_su26/solutions-key.md',
+        ],
+        'exclude': ['**/*-key.md'],
+    }
+    summary = apply_manifest(manifest, fetched, target)
+
+    assert (target / 'crosswalk.md').exists()
+    assert not (target / 'solutions-key.md').exists()
+    assert summary['files'] == 1
+
+
+def test_absent_exclude_key_copies_everything(tmp_path):
+    """Back-compat: a manifest without `exclude` behaves as before."""
+    fetched = _make_fixture_upstream(tmp_path)
+    target = tmp_path / 'target'
+    target.mkdir()
+    manifest = {
+        'strip_prefix': 'planning/pilot_su26/',
+        'paths': ['planning/pilot_su26/week-01/'],
+    }
+    summary = apply_manifest(manifest, fetched, target)
+
+    assert (target / 'week-01' / 'lesson.md').exists()
+    assert summary['excluded'] == 0
+
+
+def test_csc134_manifest_excludes_instructor_facing_files():
+    """Regression guard on the shipped manifest: the first sync vendored
+    modules/m4/practice-exit-ticket-key.md — an answer key headed
+    'Do not hand to students' — into a student-facing corpus."""
+    root = Path(__file__).resolve().parent.parent / 'scripts'
+    data = load_manifest(root / 'csc134_manifest.yaml')
+    assert '**/*-key.md' in data['exclude']
+
+
+def test_vendored_csc134_corpus_has_no_instructor_facing_files():
+    """Belt and braces: assert on what actually landed on disk, not just
+    what the manifest says. A future manual edit could reintroduce one."""
+    corpus = (Path(__file__).resolve().parent.parent
+              / 'system1-flask-chat' / 'context' / 'csc134')
+    if not corpus.is_dir():
+        pytest.skip('csc134 corpus not vendored in this checkout')
+    offenders = [
+        p for p in corpus.rglob('*.md')
+        if 'audience: instructor' in p.read_text(encoding='utf-8').lower()
+    ]
+    assert not offenders, f'instructor-facing files vendored: {offenders}'
 
 
 def test_apply_manifest_removes_stale_files(tmp_path):
