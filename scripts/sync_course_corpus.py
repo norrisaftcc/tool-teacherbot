@@ -1,14 +1,17 @@
-"""Sync the CSC 114 corpus from an upstream repo into a vendored target.
+"""Sync a course corpus from an upstream repo into a vendored target.
 
-Reads scripts/csc114_manifest.yaml, clones the upstream repo into a temp
-directory, copies listed paths into the target, and removes anything in
-the target that the new copy did not produce.
+Reads the manifest at --manifest (default: scripts/csc114_manifest.yaml
+for back-compat), clones the upstream repo into a temp directory, copies
+listed paths into the manifest's target, and removes anything in the
+target that the new copy did not produce.
 
 Run from the repo root:
-    python scripts/sync_csc114_corpus.py
+    python scripts/sync_course_corpus.py                                # csc114
+    python scripts/sync_course_corpus.py --manifest scripts/csc134_manifest.yaml
 """
 from __future__ import annotations
 
+import argparse
 import shutil
 import subprocess
 import sys
@@ -81,9 +84,18 @@ def apply_manifest(manifest: dict[str, Any], fetched_root: Path, target: Path) -
     return {'files': len(written), 'bytes': total_bytes}
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     repo_root = Path(__file__).resolve().parent.parent
-    manifest_path = repo_root / 'scripts' / 'csc114_manifest.yaml'
+    parser = argparse.ArgumentParser(description='Sync a course corpus into the vendored target.')
+    parser.add_argument(
+        '--manifest',
+        default=str(repo_root / 'scripts' / 'csc114_manifest.yaml'),
+        help='Path to the manifest YAML (default: scripts/csc114_manifest.yaml).',
+    )
+    args = parser.parse_args(argv)
+    manifest_path = Path(args.manifest)
+    if not manifest_path.is_absolute():
+        manifest_path = (Path.cwd() / manifest_path).resolve()
     manifest = load_manifest(manifest_path)
 
     target = repo_root / manifest['target']

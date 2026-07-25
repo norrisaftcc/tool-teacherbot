@@ -2,84 +2,97 @@
 import json
 from unittest.mock import patch
 
-
-def login(client, group_id='csc114', password='2026su'):
-    # Callers must monkeypatch auth.CONTEXT_DIR before calling login()
-    # (or accept the FileNotFoundError if no fixture file exists).
-    return client.post('/login', data={'group_id': group_id, 'password': password})
+import pytest
 
 
-def test_chat_page_requires_login(client):
-    response = client.get('/chat')
-    assert response.status_code == 302
-
-
-def test_chat_page_loads_after_login(client, tmp_path, monkeypatch):
+@pytest.fixture
+def csc114_ctx(tmp_path, monkeypatch):
+    """Point auth.CONTEXT_DIR at a tmp dir with a minimal csc114 header."""
     import auth
     monkeypatch.setattr(auth, 'CONTEXT_DIR', tmp_path)
-    (tmp_path / 'csc114_context.md').write_text('# Test context')
-    login(client)
-    response = client.get('/chat')
-    assert response.status_code == 200
+    (tmp_path / 'csc114_context.md').write_text('# csc114 test context')
+    return tmp_path
+
+
+def login_csc114(client):
+    return client.post('/csc114/login', data={'password': '2026su'})
+
+
+# ---- gating ---------------------------------------------------------------
+
+def test_chat_page_requires_login(client):
+    response = client.get('/csc114/chat')
+    assert response.status_code == 302
+    assert '/csc114/' in response.headers['Location']
 
 
 def test_api_chat_requires_login(client):
-    response = client.post('/api/chat', json={'message': 'hi', 'history': []})
-    assert response.status_code == 302
+    response = client.post('/csc114/api/chat', json={'message': 'hi', 'history': []})
+    assert response.status_code == 401
+    assert b'error' in response.data
 
 
-def test_api_chat_returns_json(client, tmp_path, monkeypatch):
-    import auth
-    monkeypatch.setattr(auth, 'CONTEXT_DIR', tmp_path)
-    (tmp_path / 'csc114_context.md').write_text('# Test context')
-    login(client)
+# ---- happy path -----------------------------------------------------------
+
+def test_chat_page_loads_after_login(client, csc114_ctx):
+    login_csc114(client)
+    response = client.get('/csc114/chat')
+    assert response.status_code == 200
+    assert b'CSC114' in response.data.upper()
+
+
+def test_api_chat_returns_json(client, csc114_ctx):
+    login_csc114(client)
     with patch('routes.get_claude_response', return_value=('Claude says hi', 100)):
-        response = client.post('/api/chat',
-                               json={'message': 'Hello', 'history': []},
-                               content_type='application/json')
+        response = client.post(
+            '/csc114/api/chat',
+            json={'message': 'Hello', 'history': []},
+            content_type='application/json',
+        )
         assert response.status_code == 200
         data = json.loads(response.data)
-        assert 'response' in data
+        assert data['response'] == 'Claude says hi'
         assert 'tokens_remaining' in data
 
 
-def test_api_chat_returns_error_on_api_failure(client, tmp_path, monkeypatch):
-    import auth
-    monkeypatch.setattr(auth, 'CONTEXT_DIR', tmp_path)
-    (tmp_path / 'csc114_context.md').write_text('# Test context')
-    login(client)
+def test_api_chat_returns_error_on_api_failure(client, csc114_ctx):
+    login_csc114(client)
     with patch('routes.get_claude_response', side_effect=RuntimeError('API down')):
-        response = client.post('/api/chat',
-                               json={'message': 'Hello', 'history': []},
-                               content_type='application/json')
+        response = client.post(
+            '/csc114/api/chat',
+            json={'message': 'Hello', 'history': []},
+            content_type='application/json',
+        )
         assert response.status_code == 502
-        data = json.loads(response.data)
-        assert 'error' in data
+        assert 'error' in json.loads(response.data)
 
 
-def test_api_chat_blocks_when_budget_exhausted(client, tmp_path, monkeypatch):
-    import auth
+def test_api_chat_blocks_when_budget_exhausted(client, csc114_ctx):
     from models import db, Group
-    monkeypatch.setattr(auth, 'CONTEXT_DIR', tmp_path)
-    (tmp_path / 'csc114_context.md').write_text('# Test context')
-    login(client)
-    # Exhaust the budget
+
+    login_csc114(client)
     with client.application.app_context():
         group = Group.query.filter_by(name='csc114').first()
-        if group:
-            group.tokens_used = group.token_budget
-            db.session.commit()
-    response = client.post('/api/chat',
-                           json={'message': 'Hello', 'history': []},
-                           content_type='application/json')
+        assert group is not None, 'login must have created a Group row'
+        group.tokens_used = group.token_budget
+        db.session.commit()
+
+    response = client.post(
+        '/csc114/api/chat',
+        json={'message': 'Hello', 'history': []},
+        content_type='application/json',
+    )
     assert response.status_code == 403
 
 
+# ---- admin ----------------------------------------------------------------
+
 def test_admin_shows_password_prompt_without_password(client):
-    response = client.get('/admin')
+    response = client.get('/csc114/admin')
     assert response.status_code == 200
+    assert b'INSTRUCTOR' in response.data.upper()
 
 
 def test_admin_accessible_with_correct_password(client):
-    response = client.get('/admin?password=testadmin')
+    response = client.get('/csc114/admin?password=testadmin')
     assert response.status_code == 200

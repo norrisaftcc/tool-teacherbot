@@ -1,0 +1,18 @@
+# Manifest for sync_course_corpus.py (CSC 134).
+# Edit this file to stage new corpus content, then re-run:
+#     python scripts/sync_course_corpus.py --manifest scripts/csc134_manifest.yaml
+
+upstream: https://github.com/norrisaftcc/course-csc134-template
+ref: main
+target: system1-flask-chat/context/csc134
+
+# Paths under the upstream repo to copy into target/.
+# The `planning/pilot_su26/` prefix is stripped from destination paths,
+# so `planning/pilot_su26/crosswalk.md` lands at `target/crosswalk.md`.
+# These are placeholders mirroring the CSC 114 planning shape; the
+# CSC 134 course lead should trim/expand as the template repo populates.
+strip_prefix: planning/pilot_su26/
+paths:
+  - planning/pilot_su26/crosswalk.md
+  - planning/pilot_su26/week-01/
+  - planning/pilot_su26/week-02/
