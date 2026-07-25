@@ -108,10 +108,14 @@ def main(argv: list[str] | None = None) -> int:
 
     est_tokens = summary['bytes'] // 4
     print(f"sync complete: {summary['files']} files, {summary['bytes']} bytes "
-          f"(~{est_tokens} tokens)")
+          f"(~{est_tokens} tokens vendored on disk)")
     if est_tokens > 30_000:
-        print('WARNING: corpus exceeds ~30k token soft budget. '
-              'Review before merging.', file=sys.stderr)
+        # Not necessarily a problem since ADR-0002: only `corpus_index`
+        # plus one `active_module` reaches the system prompt. Worth a look
+        # anyway — a single module this large would blow the window.
+        print('NOTE: vendored corpus exceeds ~30k tokens. Only the active '
+              'window reaches the prompt; check that no single module is '
+              'oversized.', file=sys.stderr)
     return 0
 
 
