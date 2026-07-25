@@ -1,7 +1,10 @@
 from pathlib import Path
+from unittest.mock import patch
+
 import pytest
 import yaml
 
+import scripts.sync_course_corpus as sync_mod
 from scripts.sync_course_corpus import apply_manifest, load_manifest
 
 
@@ -16,6 +19,11 @@ def test_both_course_manifests_load_and_share_schema():
         assert required <= set(data.keys()), f'{name} missing keys'
         assert isinstance(data['paths'], list) and data['paths']
         assert data['upstream'].startswith('https://github.com/')
+        # csc134 upstream must point at the csc134 template repo, not
+        # a copy-paste of csc114's — a mixup here silently vendors the
+        # wrong course into the wrong skin.
+        expected_repo = f'course-{name.split("_")[0]}-template'
+        assert expected_repo in data['upstream']
 
 
 def test_csc134_manifest_uses_haiku_target_dir(tmp_path):
@@ -200,3 +208,32 @@ def test_symlinked_manifest_path_is_rejected(tmp_path):
     }
     with pytest.raises(ValueError, match='refusing to follow'):
         apply_manifest(manifest, fetched, target)
+
+
+def test_main_cli_routes_manifest_flag_to_apply_manifest(tmp_path):
+    """End-to-end CLI test: main(['--manifest', X]) must load X,
+    invoke fetch_upstream with X's upstream/ref, and apply the manifest
+    into the target dir. Covers argparse + manifest resolution + the
+    plumbing that T2 added (untested by the apply_manifest-only cases)."""
+    manifest_path = tmp_path / 'test_manifest.yaml'
+    target = tmp_path / 'vendored'
+    manifest_path.write_text(f"""
+upstream: https://github.com/example/anything
+ref: main
+target: {target}
+strip_prefix: root/
+paths:
+  - root/only.md
+""")
+
+    def fake_fetch(url, ref, dest):
+        assert url == 'https://github.com/example/anything'
+        assert ref == 'main'
+        (dest / 'root').mkdir(parents=True)
+        (dest / 'root' / 'only.md').write_text('# from CLI\n')
+
+    with patch.object(sync_mod, 'fetch_upstream', side_effect=fake_fetch):
+        rc = sync_mod.main(['--manifest', str(manifest_path)])
+
+    assert rc == 0
+    assert (target / 'only.md').read_text() == '# from CLI\n'

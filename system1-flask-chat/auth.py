@@ -71,9 +71,21 @@ def load_skin_context(slug: str) -> str:
     corpus_dir_name = skin.get('corpus_dir')
     if corpus_dir_name:
         corpus_dir = CONTEXT_DIR / corpus_dir_name
-        if corpus_dir.is_dir():
+        if corpus_dir.is_dir() and not corpus_dir.is_symlink():
+            corpus_root = corpus_dir.resolve()
             corpus_chunks: list[str] = []
             for corpus_file in sorted(corpus_dir.rglob('*.md')):
+                # Refuse to follow symlinks into the corpus tree — a
+                # hostile symlink at context/<slug>/x.md pointed at
+                # /etc/passwd would otherwise flow into Claude's system
+                # prompt and out to the student.
+                if corpus_file.is_symlink() or not corpus_file.is_file():
+                    continue
+                try:
+                    resolved = corpus_file.resolve()
+                    resolved.relative_to(corpus_root)
+                except (OSError, ValueError):
+                    continue
                 rel = corpus_file.relative_to(corpus_dir)
                 corpus_chunks.append(f'\n\n--- corpus: {rel} ---\n\n{corpus_file.read_text()}')
             if corpus_chunks:

@@ -65,3 +65,22 @@ def test_load_skin_context_unknown_slug_raises():
         load_skin_context('bogus')
 
 
+def test_load_skin_context_skips_symlinks_in_corpus(tmp_path, monkeypatch):
+    """A hostile symlink at context/<slug>/foo.md must not leak host-file
+    contents into Claude's system prompt."""
+    import auth
+    monkeypatch.setattr(auth, 'CONTEXT_DIR', tmp_path)
+    (tmp_path / 'csc114_context.md').write_text('# header')
+    corpus = tmp_path / 'csc114'
+    corpus.mkdir()
+    (corpus / 'legit.md').write_text('# legit body')
+    secret = tmp_path / 'secret.txt'
+    secret.write_text('do-not-vendor-me')
+    (corpus / 'evil.md').symlink_to(secret)
+
+    out = load_skin_context('csc114')
+    assert '# legit body' in out
+    assert 'do-not-vendor-me' not in out
+    assert 'evil.md' not in out
+
+

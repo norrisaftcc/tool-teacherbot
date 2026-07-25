@@ -52,6 +52,12 @@ def test_csc134_login_roundtrip_with_placeholder_passcode(client, both_contexts)
     assert r.status_code == 302
     assert '/csc134/chat' in r.headers['Location']
 
+    # Follow through: the chat page must actually render so a template
+    # regression on the csc134 render path can't slip past.
+    r = client.get('/csc134/chat')
+    assert r.status_code == 200
+    assert b'CSC134' in r.data.upper()
+
 
 def test_login_wrong_password_flashes_and_stays(client, both_contexts):
     r = _login(client, 'csc134', 'not-the-passcode')
@@ -60,6 +66,15 @@ def test_login_wrong_password_flashes_and_stays(client, both_contexts):
 
 
 # ---- per-skin model routing ---------------------------------------------
+
+def _bound_arg(mock_call, name):
+    """Extract a named argument regardless of positional/kwarg call style."""
+    import inspect
+    import claude_handler
+    sig = inspect.signature(claude_handler.get_claude_response)
+    bound = sig.bind(*mock_call.args, **mock_call.kwargs)
+    return bound.arguments.get(name)
+
 
 def test_api_chat_calls_handler_with_csc114_sonnet_model(client, both_contexts):
     _login(client, 'csc114', '2026su')
@@ -70,8 +85,9 @@ def test_api_chat_calls_handler_with_csc114_sonnet_model(client, both_contexts):
             content_type='application/json',
         )
         assert r.status_code == 200
-        _, kwargs = mocked.call_args
-        assert kwargs.get('model') == 'claude-sonnet-4-6'
+        assert _bound_arg(mocked.call_args, 'model') == 'claude-sonnet-4-6'
+        # Handler must receive the loaded context, not an empty string.
+        assert _bound_arg(mocked.call_args, 'group_context')
 
 
 def test_api_chat_calls_handler_with_csc134_haiku_model(client, both_contexts):
@@ -84,8 +100,8 @@ def test_api_chat_calls_handler_with_csc134_haiku_model(client, both_contexts):
             content_type='application/json',
         )
         assert r.status_code == 200
-        _, kwargs = mocked.call_args
-        assert kwargs.get('model') == 'claude-haiku-4-5-20251001'
+        assert _bound_arg(mocked.call_args, 'model') == 'claude-haiku-4-5-20251001'
+        assert _bound_arg(mocked.call_args, 'group_context')
 
 
 # ---- cross-skin isolation ----------------------------------------------
@@ -101,14 +117,19 @@ def test_cross_skin_session_redirects_to_correct_skin_login(client, both_context
 
 
 def test_cross_skin_api_chat_is_gated(client, both_contexts):
+    """Log into csc114, then POST /csc134/api/chat. The gate must reject
+    BEFORE the handler runs (otherwise csc114's context leaks to csc134's
+    model and, on a CI runner with ANTHROPIC_API_KEY set, we bill real
+    money on a smoke test)."""
     _login(client, 'csc114', '2026su')
-    r = client.post(
-        '/csc134/api/chat',
-        json={'message': 'hi', 'history': []},
-        content_type='application/json',
-    )
-    # api gate must not serve the response — redirect is fine, so is 401/403.
-    assert r.status_code in (302, 401, 403)
+    with patch('routes.get_claude_response') as mocked:
+        r = client.post(
+            '/csc134/api/chat',
+            json={'message': 'hi', 'history': []},
+            content_type='application/json',
+        )
+    assert r.status_code == 401
+    mocked.assert_not_called()
 
 
 def test_second_skin_login_replaces_first(client, both_contexts):
@@ -121,15 +142,27 @@ def test_second_skin_login_replaces_first(client, both_contexts):
         assert s['skin'] == 'csc134'
 
 
-# ---- CSC 134 manifest shape --------------------------------------------
+def test_login_cookie_stays_under_browser_limit_with_large_corpus(client, tmp_path, monkeypatch):
+    """Regression: an earlier revision stashed load_skin_context() into
+    session['skin_context']. With the real csc114 corpus (~40KB) that
+    exceeded the 4093-byte signed-cookie limit — browsers silently
+    dropped the cookie, so /csc114/chat re-redirected to login (loop).
+    The session must not carry the full corpus."""
+    import auth
+    monkeypatch.setattr(auth, 'CONTEXT_DIR', tmp_path)
+    (tmp_path / 'csc114_context.md').write_text('# csc114 header')
+    corpus = tmp_path / 'csc114'
+    corpus.mkdir()
+    for i in range(30):
+        (corpus / f'week-{i:02d}.md').write_text('x' * 2000)  # ~60KB total corpus
 
-def test_csc134_manifest_shape():
-    import yaml
-    from pathlib import Path
-    manifest_path = Path(__file__).resolve().parents[2] / 'scripts' / 'csc134_manifest.yaml'
-    data = yaml.safe_load(manifest_path.read_text())
-    assert 'course-csc134-template' in data['upstream']
-    assert data['ref'] == 'main'
-    assert data['target'] == 'system1-flask-chat/context/csc134'
-    assert isinstance(data['paths'], list) and data['paths']
-    assert data['strip_prefix'].endswith('/')
+    r = client.post('/csc114/login', data={'password': '2026su'})
+    assert r.status_code == 302
+    cookies = r.headers.getlist('Set-Cookie')
+    for c in cookies:
+        assert len(c) < 4093, f'Set-Cookie exceeds browser limit: {len(c)} bytes'
+
+
+# CSC 134 manifest shape assertions live in tests/test_sync_course_corpus.py
+# alongside the sync-script tests — a manifest is a sync-script contract,
+# not a skin contract. Deduplicated per review finding f12.

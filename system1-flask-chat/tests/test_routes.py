@@ -28,7 +28,8 @@ def test_chat_page_requires_login(client):
 
 def test_api_chat_requires_login(client):
     response = client.post('/csc114/api/chat', json={'message': 'hi', 'history': []})
-    assert response.status_code == 302
+    assert response.status_code == 401
+    assert b'error' in response.data
 
 
 # ---- happy path -----------------------------------------------------------

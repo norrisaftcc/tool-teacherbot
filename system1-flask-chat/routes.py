@@ -34,13 +34,15 @@ def logout():
 # ---------------------------------------------------------------------------
 
 def skin_login_required(slug: str):
-    """Redirect to this skin's login unless the session is scoped to it."""
+    """Gate a skin-scoped route: HTML routes 302 to this skin's login,
+    JSON API routes return 401 (so chat.js sees an error instead of an
+    opaque redirect followed by an HTML body)."""
     def decorator(f):
         @wraps(f)
         def decorated(*args, **kwargs):
             if session.get('skin') != slug:
-                if request.path.endswith('/api/chat') or request.path.endswith('/api/chat/stream'):
-                    return redirect(url_for(f'skin_{slug}.login_view'), code=302)
+                if '/api/' in request.path:
+                    return jsonify({'error': 'Not authenticated for this skin.'}), 401
                 return redirect(url_for(f'skin_{slug}.login_view'))
             return f(*args, **kwargs)
         return decorated
@@ -89,8 +91,13 @@ def skin_blueprint(slug: str) -> Blueprint:
                 login_action=_login_action(),
             ), 200
 
+        # Validate the cohort header/corpus loads now so we surface any
+        # FileNotFoundError before the user reaches /chat. We do NOT cache
+        # the context in the session — see api_chat / api_chat_stream,
+        # which reload it per request. (The corpus is ~40KB on disk and
+        # would blow past the 4KB signed-cookie limit if we stored it.)
         try:
-            context = load_skin_context(slug)
+            load_skin_context(slug)
         except FileNotFoundError as e:
             flash(str(e))
             return render_template(
@@ -102,7 +109,6 @@ def skin_blueprint(slug: str) -> Blueprint:
 
         session.clear()
         session['skin'] = slug
-        session['skin_context'] = context
         session['clearance'] = skin_entry['clearance']
 
         group = Group.query.filter_by(name=slug).first()
@@ -127,6 +133,7 @@ def skin_blueprint(slug: str) -> Blueprint:
     @bp.route('/api/chat', methods=['POST'], endpoint='api_chat')
     @require_login
     def api_chat():
+        from auth import load_skin_context
         from models import db, Group, Conversation, Message
 
         data = request.get_json(silent=True) or {}
@@ -143,7 +150,7 @@ def skin_blueprint(slug: str) -> Blueprint:
 
         try:
             response_text, tokens_used = get_claude_response(
-                session['skin_context'], history, user_message, model=skin['model'],
+                load_skin_context(slug), history, user_message, model=skin['model'],
             )
         except RuntimeError as e:
             return jsonify({'error': str(e)}), 502
@@ -176,6 +183,7 @@ def skin_blueprint(slug: str) -> Blueprint:
     @bp.route('/api/chat/stream', methods=['POST'], endpoint='api_chat_stream')
     @require_login
     def api_chat_stream():
+        from auth import load_skin_context
         from models import db, Group, Conversation, Message
 
         data = request.get_json(silent=True) or {}
@@ -190,7 +198,7 @@ def skin_blueprint(slug: str) -> Blueprint:
         if group and group.tokens_remaining <= 0:
             return jsonify({'error': 'Token budget exhausted. Contact your instructor.'}), 403
 
-        skin_context = session['skin_context']
+        skin_context = load_skin_context(slug)
         model = skin['model']
 
         def generate():

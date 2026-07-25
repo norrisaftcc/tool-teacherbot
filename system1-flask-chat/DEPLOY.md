@@ -23,7 +23,7 @@ procedure documented in `docs/superpowers/plans/2026-05-16-render-deployment.md`
 |---|---|
 | `ANTHROPIC_API_KEY` | Instructor's key from https://console.anthropic.com/. Starts with `sk-ant-`. |
 | `FLASK_SECRET_KEY` | Generated random hex: `python3 -c "import secrets; print(secrets.token_hex(32))"`. Rotate on suspected leak. |
-| `ADMIN_PASSWORD` | Chosen string. Gates `/admin?password=…`. Alpha-grade auth — replace before public use. |
+| `ADMIN_PASSWORD` | Chosen string. Gates `/<slug>/admin?password=…` per skin (e.g. `/csc114/admin?password=…`). Alpha-grade auth — replace before public use. |
 | `DATABASE_URL` | Connection string from the `teacherbot-db` instance. `app.py:18-21` rewrites `postgres://` and `postgresql://` to `postgresql+psycopg://`. |
 
 Read or update env vars:
@@ -99,7 +99,7 @@ render restart <srv-id>
 These are documented in `../current-status-report.md` and are out of scope for
 the initial deploy. File issues to track them before any production use:
 
-- Admin auth is `?password=...` query string. Replace with a POST login form.
+- Admin auth is `/<slug>/admin?password=...` query string. Replace with a POST login form.
 - No CSRF protection. `flask-wtf` is not in `requirements.txt`.
 - Token-budget enforcement has a race condition (read-modify-write between
   requests is not atomic).
