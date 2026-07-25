@@ -1,7 +1,7 @@
 from pathlib import Path
 import pytest
 
-from scripts.sync_csc114_corpus import apply_manifest
+from scripts.sync_course_corpus import apply_manifest
 
 
 def _make_fixture_upstream(tmp_path: Path) -> Path:

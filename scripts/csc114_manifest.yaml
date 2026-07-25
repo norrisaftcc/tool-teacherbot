@@ -1,5 +1,7 @@
-# Manifest for sync_csc114_corpus.py.
-# Edit this file to stage new corpus content, then re-run the script.
+# Manifest for sync_course_corpus.py (CSC 114).
+# Edit this file to stage new corpus content, then re-run:
+#     python scripts/sync_course_corpus.py --manifest scripts/csc114_manifest.yaml
+# (Absent --manifest, this file is the default for back-compat.)
 
 upstream: https://github.com/norrisaftcc/course-csc114-template
 ref: main
