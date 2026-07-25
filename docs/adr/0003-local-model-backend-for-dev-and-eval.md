@@ -161,18 +161,47 @@ The rule that follows: **a persona change validated only locally is not
 validated.** Local runs narrow the search; the bank is re-run against
 Haiku before anything ships to a cohort.
 
-### Operational gotcha, recorded now
+### Operational gotcha — measured, not predicted
 
-**Ollama defaults to a 2048-token context window.** The csc134 system
-prompt is ~6k tokens today and csc114's is ~14.6k. Without `num_ctx`
-raised, the corpus is silently truncated and every eval result is
-garbage — with no error, and in the direction that looks like "the model
-ignored the corpus." The provider must set `num_ctx` explicitly from the
-measured prompt size and fail loudly if the model can't accommodate it.
+**Ollama defaults to a 2048-token context window**, confirmed on
+0.32.4 against the real composed csc134/m0 prompt (~7,960 tokens):
 
-Model choice is deliberately not fixed here; something instruction-tuned
-in the 7–14B range with real long-context support. The harness takes
-`--model`, so it is a flag, not a decision.
+| Run | `prompt_eval_count` |
+|---|---|
+| default `num_ctx` | **2,050** |
+| `num_ctx=32768` | **8,170** |
+
+Three quarters of the window was dropped. The provider must set
+`num_ctx` explicitly from the measured prompt size and fail loudly if
+the model cannot accommodate it.
+
+The part worth writing down is *how it fails*. This ADR previously
+guessed the failure would look like "the model ignored the corpus." It
+does not. Asked how to open a Codespace, the truncated run answered
+fluently and plausibly — generic GitHub navigation steps, confidently
+delivered, indistinguishable from a good answer unless you already know
+what the corpus says. **A silently truncated eval reads as a pass.**
+Any harness that doesn't assert on `prompt_eval_count` is measuring
+nothing, and the number must be checked per run rather than configured
+once and trusted.
+
+### Sizing on the box we have
+
+RTX 2070 (8 GB VRAM), 16 GB system RAM. The window sizes from ADR-0002's
+amendment (~6k–8k for most csc134 modules, ~17.6k/18.3k for m1/m2,
+~25.2k for m4, ~14.6k for csc114) put real pressure on an 8 GB card,
+because KV cache scales with context:
+
+- **`llama3.2:3b`** (~2 GB weights) holds a 32k context entirely on GPU
+  — enough for every window we have, m4 included.
+- **A 7–8B at Q4** (~5 GB weights) fits on-GPU to roughly 16k context.
+  That covers most csc134 modules and csc114, but **not** m1, m2, or m4,
+  which would spill into system RAM and slow down sharply.
+
+So the choice is not simply "bigger is better": on this hardware, a
+bigger model means a smaller context, and context is the thing our
+window actually needs. Model choice stays a `--model` flag rather than a
+decision recorded here.
 
 ### What we deliberately do not do
 
@@ -233,6 +262,31 @@ in the 7–14B range with real long-context support. The harness takes
 4. **Ship the persona untested and iterate on student reports.** What we
    are doing today by default. First-year students are a bad regression
    suite and a worse one to be wrong in front of.
+
+### What the first throwaway run already turned up
+
+Three questions against csc134/m0 through `llama3.2:3b`, using the real
+composition path. At 3B nothing here transfers to Haiku — but one
+finding does not depend on the model at all:
+
+**The vendored corpus links to files we did not vendor.** Asked about a
+due date, the bot correctly declined to invent one and then pointed at
+`_tracking/course-manifest-csc134.yaml`. That path is real upstream and
+absent from our corpus; `modules/m*/_assets.md` and `_overview.md`
+reference `_tracking/skeleton-plan.md` and
+`_tracking/numbering-reconciliation-map.md` the same way. A student
+following that pointer finds nothing. Windowing created this: we vendor
+a subset of a repo whose documents assume the whole repo. Either vendor
+the referenced files, strip the links at sync, or tell the persona that
+paths beginning `_tracking/` are not student-visible.
+
+The two model-dependent observations, recorded as things for the bank to
+watch rather than conclusions: the persona's "never hand over a
+compilable solution" rule did not hold against a direct request even
+with the full window loaded, and answers were not grounded in the
+vendored walkthrough even when it was in context. Both are exactly what
+a 3B is expected to do badly. Both are also exactly what the bank exists
+to catch on Haiku, where they would matter.
 
 ## Open Questions
 
