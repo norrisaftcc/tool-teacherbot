@@ -6,7 +6,22 @@ from auth import (
     authenticate_skin,
     load_skin_context,
     load_skin_persona,
+    module_window,
 )
+
+
+def _paired_corpus(tmp_path, module='m0'):
+    """Lay out a csc134-shaped corpus: upstream splits a week across
+    modules/mN (what it's about) and assignments/mN (what you do)."""
+    (tmp_path / 'csc134_context.md').write_text('# header')
+    corpus = tmp_path / 'csc134'
+    (corpus / 'outline').mkdir(parents=True)
+    (corpus / 'modules' / module).mkdir(parents=True)
+    (corpus / 'assignments' / module).mkdir(parents=True)
+    (corpus / 'outline' / 'topics.md').write_text('# outline body')
+    (corpus / 'modules' / module / '_overview.md').write_text('# module body')
+    (corpus / 'assignments' / module / '01_setup.md').write_text('# assignment body')
+    return corpus
 
 
 def _window(tmp_path, slug='csc114', module='week-02-keras-hello-world'):
@@ -132,6 +147,79 @@ def test_load_skin_context_survives_missing_module(tmp_path, monkeypatch):
 
     out = load_skin_context('csc114')
     assert out.strip() == '# header'
+
+
+# ---- paired module window (ADR-0002 amendment) -----------------------------
+
+def test_module_window_expands_every_template():
+    assert module_window('csc134') == [
+        f'modules/{SKINS["csc134"]["active_module"]}',
+        f'assignments/{SKINS["csc134"]["active_module"]}',
+    ]
+    # csc114's modules are top-level dirs — one template, unchanged.
+    assert module_window('csc114') == [SKINS['csc114']['active_module']]
+
+
+def test_csc134_window_carries_module_and_assignments(tmp_path, monkeypatch):
+    """The gap the first sync exposed: modules/m0 says what the week is
+    about, assignments/m0 is the workspace-setup walkthrough a week-1
+    student actually asks about. The window needs both."""
+    import auth
+    monkeypatch.setattr(auth, 'CONTEXT_DIR', tmp_path)
+    _paired_corpus(tmp_path)
+
+    out = load_skin_context('csc134')
+
+    assert '# outline body' in out       # index
+    assert '# module body' in out        # modules/m0
+    assert '# assignment body' in out    # assignments/m0
+    assert '--- corpus: assignments/m0/01_setup.md ---' in out
+
+
+def test_module_without_assignments_still_loads(tmp_path, monkeypatch):
+    """m3-m8 have readings but no assignments authored yet. A half-present
+    module is a normal state, not a failure."""
+    import auth
+    monkeypatch.setattr(auth, 'CONTEXT_DIR', tmp_path)
+    corpus = _paired_corpus(tmp_path, module='m3')
+    import shutil
+    shutil.rmtree(corpus / 'assignments' / 'm3')
+    monkeypatch.setenv('CSC134_ACTIVE_MODULE', 'm3')
+
+    out = load_skin_context('csc134')
+
+    assert active_module('csc134') == 'm3'
+    assert '# module body' in out
+
+
+def test_module_with_only_assignments_still_loads(tmp_path, monkeypatch):
+    """The mirror case: an assignment authored before its module page."""
+    import auth
+    monkeypatch.setattr(auth, 'CONTEXT_DIR', tmp_path)
+    corpus = _paired_corpus(tmp_path, module='m7')
+    import shutil
+    shutil.rmtree(corpus / 'modules' / 'm7')
+    monkeypatch.setenv('CSC134_ACTIVE_MODULE', 'm7')
+
+    assert active_module('csc134') == 'm7'
+    assert '# assignment body' in load_skin_context('csc134')
+
+
+def test_env_override_takes_a_bare_module_id(tmp_path, monkeypatch):
+    """The override a course lead types into Render is `m3`, not a path."""
+    import auth
+    monkeypatch.setattr(auth, 'CONTEXT_DIR', tmp_path)
+    _paired_corpus(tmp_path, module='m3')
+    monkeypatch.setenv('CSC134_ACTIVE_MODULE', 'm3')
+
+    assert active_module('csc134') == 'm3'
+    assert module_window('csc134') == ['modules/m3', 'assignments/m3']
+
+
+def test_csc134_active_module_is_an_id_not_a_path():
+    """Regression guard: `modules/m0` here would expand to
+    `modules/modules/m0` and silently window nothing."""
+    assert '/' not in (SKINS['csc134']['active_module'] or '')
 
 
 # ---- persona ---------------------------------------------------------------

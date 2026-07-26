@@ -212,13 +212,96 @@ of that, cache hits bill the block at ~10%.
   one-file edit either way.
 - **Module m4 (115 KB).** Four to six times its siblings. Split
   upstream, or accept one heavy week.
-- **Assignments alongside modules.** Vendored, but not in the window —
+- ~~**Assignments alongside modules.** Vendored, but not in the window —
   `assignments/mN/` does not sit under `modules/mN/`. Either the index
   grows a per-module assignment path or `active_module` becomes a list
-  of globs. Deferred until the first week where it actually bites.
+  of globs. Deferred until the first week where it actually bites.~~
+  **Resolved — see the amendment below. It bit at week 1.**
 
 ## Follow-ups
 
-- ADR-0003 (conditional): retrieval over the full corpus, if the
-  one-module window proves too tight.
+- ADR-0004 (conditional): retrieval over the full corpus, if the
+  one-module window proves too tight. (Was ADR-0003; renumbered when
+  ADR-0003 took the local-model backend.)
 - Template pass: retire AlgoCratic UI chrome, or make it per-skin.
+
+---
+
+## Amendment (2026-07-25): a module is a pair, not a directory
+
+**Status:** Accepted. Supersedes the `active_module` shape in Decision §3
+and resolves the "Assignments alongside modules" open question above.
+
+### What the first sync showed
+
+The original window was one directory: `active_module: 'modules/m0'`.
+The first real csc134 sync made that obviously wrong within minutes of
+looking at the file listing. Upstream splits a week across two trees:
+
+```
+modules/m0/       _overview.md  _mlos.md  _assets.md        ← what the week is about
+assignments/m0/   01_workspace_setup.md  02_first_pull_request.md  ← what the student does
+```
+
+`modules/mN` is course-design material — learning objectives, an asset
+list, a scope note. `assignments/mN` is the student-facing walkthrough.
+A window holding only the first can tell a week-1 student what the
+module's outcomes are and cannot tell them how to open their Codespace,
+which is the question they will actually ask. Only m4 has substantial
+teaching prose in `modules/`; for m0–m2 essentially all of the
+student-facing content is in `assignments/`.
+
+The deferral in the open questions above assumed this would surface
+gradually. It was true of the very first module.
+
+### Decision
+
+`active_module` becomes a module **id** (`m0`), and the skin declares
+how ids expand to corpus paths:
+
+```python
+'active_module': 'm0',
+'module_paths': ['modules/{module}', 'assignments/{module}'],
+```
+
+csc114 is unchanged in behaviour — its weeks are top-level directories,
+so it declares the identity template `['{module}']`.
+
+Two properties this buys, both of which the alternatives lose:
+
+- **The env override stays one short token.** `CSC134_ACTIVE_MODULE=m3`
+  is what a course lead types into a Render field at 8am. A list of
+  paths, or a comma-separated pair, is a thing to get wrong under time
+  pressure — and getting it wrong silently empties the window.
+- **A half-authored module is a normal state, not a failure.** m3–m8
+  have readings with no assignments written yet. An individually missing
+  path logs at debug and is skipped; only *all* paths missing warns.
+  The env override validates the same way — it accepts an id if **any**
+  of its paths resolve, so advancing to a module whose assignment isn't
+  written yet works rather than silently falling back to last week.
+
+### Effect on the window
+
+Composed system prompt per module, against the corpus as vendored:
+
+| Module | modules/ | assignments/ | prompt | tokens |
+|---|:--:|:--:|---:|---:|
+| m0 | ✓ | ✓ | 31.8 KB | ~8.0k |
+| m1 | ✓ | ✓ | 70.5 KB | ~17.6k |
+| m2 | ✓ | ✓ | 73.4 KB | ~18.3k |
+| m3, m5–m8 | ✓ | — | 24–32 KB | ~6.0–7.9k |
+| m4 | ✓ | — | 100.7 KB | ~25.2k |
+
+Every module clears Haiku 4.5's 4096-token minimum cacheable prefix, so
+each still gets one cache entry shared across the cohort. m1 and m2 are
+2–3× their module-only size because that is where the assignments are;
+that is the content being paid for, not overhead. m4 remains the
+outlier, now for the opposite reason — a large reading with no
+assignment yet.
+
+### What this does not change
+
+The window is still exactly one module. This is not a step toward
+loading more of the corpus; it is a correction to what "one module"
+means in a repo that stores a module in two places. Retrieval over the
+full corpus remains ADR-0004, conditional and unbuilt.
