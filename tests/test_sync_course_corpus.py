@@ -252,6 +252,43 @@ def test_vendored_csc134_corpus_has_no_upstream_only_links():
     assert not offenders, f'upstream-only paths still referenced: {offenders}'
 
 
+def test_load_manifest_reads_utf8_regardless_of_platform_encoding(tmp_path):
+    """read_text() defaults to the platform encoding, so on Windows an em
+    dash in a substitution round-tripped through cp1252 and landed in the
+    corpus as "â€”". Shipped once; guarded now."""
+    manifest_path = tmp_path / 'm.yaml'
+    manifest_path.write_text(
+        "upstream: https://github.com/example/x\n"
+        "ref: main\n"
+        "target: out\n"
+        "strip_prefix: ''\n"
+        "paths: ['a.md']\n"
+        "substitutions:\n"
+        "  - pattern: 'x'\n"
+        "    replace: 'the Mail Run — stage, commit, push'\n",
+        encoding='utf-8',
+    )
+    data = load_manifest(manifest_path)
+    assert data['substitutions'][0]['replace'] == 'the Mail Run — stage, commit, push'
+
+
+def test_vendored_csc134_m0_has_no_pull_request_walkthrough():
+    """CSC 134 first-years submit with the Mail Run and are not shown a PR.
+    Upstream marks the walkthrough DO NOT PORT / superseded; the course
+    lead confirms it. A re-sync that lost the exclusion would put it back
+    in front of week-1 students."""
+    m0 = (Path(__file__).resolve().parent.parent / 'system1-flask-chat'
+          / 'context' / 'csc134')
+    if not m0.is_dir():
+        pytest.skip('csc134 corpus not vendored in this checkout')
+    assert not (m0 / 'assignments' / 'm0' / '02_first_pull_request.md').exists()
+    window = list((m0 / 'assignments' / 'm0').glob('*.md'))
+    window += list((m0 / 'modules' / 'm0').glob('*.md'))
+    offenders = [p for p in window
+                 if 'pull request' in p.read_text(encoding='utf-8').lower()]
+    assert not offenders, f'PR material still in the m0 window: {offenders}'
+
+
 def test_csc134_manifest_excludes_instructor_facing_files():
     """Regression guard on the shipped manifest: the first sync vendored
     modules/m4/practice-exit-ticket-key.md — an answer key headed

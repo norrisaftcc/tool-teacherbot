@@ -24,7 +24,10 @@ import yaml
 
 
 def load_manifest(path: Path) -> dict[str, Any]:
-    return yaml.safe_load(path.read_text())
+    # Explicit utf-8: read_text() defaults to the *platform* encoding, so on
+    # Windows a substitution containing an em dash round-trips through
+    # cp1252 and lands in the corpus as mojibake ("â€”"). Observed, fixed.
+    return yaml.safe_load(path.read_text(encoding='utf-8'))
 
 
 def fetch_upstream(url: str, ref: str, dest: Path) -> None:

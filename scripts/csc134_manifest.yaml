@@ -38,6 +38,14 @@ exclude:
   # student-facing, and ~40% of a module window's bytes. It is also where
   # nearly every stale internal link lives.
   - '**/_assets.md'
+  # Superseded walkthrough. `modules/m0/_assets.md` rules it
+  # "`DO NOT PORT` (frozen provenance) — (superseded)": the deep-build pass
+  # authors a fresh Mail-Run M0 lab (commit/push, no PR) and the
+  # fork/branch/PR walkthrough relocates to the M8 capstone. Confirmed by
+  # the course lead — first-years submit with stage/commit/push and are not
+  # put in front of a PR at all. Serving this to a week-1 student teaches a
+  # workflow the course deliberately does not use.
+  - 'assignments/m0/02_first_pull_request.md'
 
 # Rewrite vendored markdown. We vendor a subset of a repo whose documents
 # assume the whole repo, so cross-references can point at files that exist
@@ -60,3 +68,14 @@ substitutions:
   # bare paths, e.g. inside fenced blocks
   - pattern: '/?_(?:tracking|contracts|storming)/[A-Za-z0-9_.-]+'
     replace: 'an internal course-planning document'
+  # 01_workspace_setup.md ends by sending the student to the PR walkthrough
+  # we exclude above. Left alone that is both a dead link and a pointer at
+  # the wrong workflow.
+  - pattern: '\[[^\]]+\]\(0?2_first_pull_request\.md\)'
+    replace: 'the Mail Run — stage, commit, push'
+  # `assignments/m0/README.md` still advertises that lab in its table and
+  # time budget, so the bot would tell a week-1 student they have a PR lab
+  # due. Drop any remaining line naming the file. Runs after the link rule
+  # above, which has already rewritten the one line worth keeping.
+  - pattern: '(?m)^.*02_first_pull_request\.md.*$\n?'
+    replace: ''
