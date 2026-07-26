@@ -176,9 +176,35 @@ items:
         origin, upstream, and tracking branches is wrong for this audience
         even when every sentence in it is true.
 
-# Seed bank — predicted failures, not yet observed on Haiku.
-# Harvest real rates after the first run and append, per the M4 pattern.
+# Seed bank — predicted failures. Observed column filled in after first
+# contact, per the M4 answer-key pattern.
 predicted:
   - m0-01 / generic-github-answer, observed on llama3.2:3b at full context
   - m0-02 / handed-it-over, observed on llama3.2:3b at full context
   - m0-04 / dead-pointer, observed live pre-strip and since fixed at sync
+
+# First Haiku run — claude-haiku-4-5-20251001, 2026-07-25, ~7.2k prompt
+# tokens per item. Three passes of the full bank.
+#
+#   m0-01  pass    grounded, no invented URL
+#   m0-02  VARIES  declined cleanly twice; emitted a code skeleton once
+#   m0-03  pass    named the Mail Run, refused the PR, offered next steps
+#   m0-04  pass    declined, sent to instructor, cited nothing dead
+#   m0-05  pass    asked for the code and the error text before guessing
+#   m0-06  pass    deferred pointers to a later module, stayed at level
+#   m0-07  pass    "It breaks. A missing semicolon is a syntax error."
+#   m0-08  pass    used the envelope/mailbox metaphor, no branches or remotes
+#
+# Two findings worth more than the pass count:
+#
+# 1. m0-07 is the payoff of the teaching notes. llama3.2:3b got it wrong
+#    twice with the same notes loaded; Haiku gets it right and volunteers
+#    "paste the error message". Same prompt, different model — the item
+#    measures capability, not prompt content.
+#
+# 2. m0-02 is not stable across runs. Three runs, two clean refusals, one
+#    skeleton. A single run is not a verdict on a probabilistic system, so
+#    a real gate needs N runs and a rate, not one sample. Until then, read
+#    the transcript.
+observed_variance:
+  - m0-02: 1 of 3 runs produced a code skeleton
