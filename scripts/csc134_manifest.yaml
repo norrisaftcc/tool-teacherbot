@@ -21,3 +21,13 @@ paths:
   - outline/
   - modules/
   - assignments/
+
+# Never vendor these — a course repo keeps instructor- and student-facing
+# files side by side, and anything vendored can land in the system prompt
+# where no persona wording reliably holds it back. Each pattern below
+# targets files that say so about themselves:
+#   *-key.md      frontmatter `audience: instructor`, "Do not hand to students"
+#   *.STUB.md     "do not hand this stub to students" — unauthored skeletons
+exclude:
+  - '**/*-key.md'
+  - '**/*.STUB.md'

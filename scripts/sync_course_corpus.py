@@ -34,13 +34,26 @@ def fetch_upstream(url: str, ref: str, dest: Path) -> None:
     )
 
 
+def is_excluded(rel: Path, patterns: list[str]) -> bool:
+    """True if `rel` (relative to the upstream root) matches any exclude glob.
+
+    Exists because a course repo mixes student- and instructor-facing files
+    in the same directory — an answer key sitting next to the reading it
+    answers. Vendoring one into a student-facing bot puts it in the system
+    prompt, where no amount of persona wording reliably keeps it back.
+    """
+    return any(rel.match(pattern) for pattern in patterns)
+
+
 def apply_manifest(manifest: dict[str, Any], fetched_root: Path, target: Path) -> dict[str, int]:
     """Copy manifest paths from `fetched_root` into `target`, deleting stragglers.
 
-    Returns a small summary dict: {'files': N, 'bytes': M}.
+    Returns a small summary dict: {'files': N, 'bytes': M, 'excluded': K}.
     """
     strip_prefix = manifest.get('strip_prefix', '') or ''
     prefix_path = Path(strip_prefix) if strip_prefix else None
+    exclude = list(manifest.get('exclude') or [])
+    excluded_count = 0
     written: set[Path] = set()
 
     for rel in manifest['paths']:
@@ -51,6 +64,9 @@ def apply_manifest(manifest: dict[str, Any], fetched_root: Path, target: Path) -
             raise FileNotFoundError(f'manifest path not in upstream: {rel}')
 
         rel_path = Path(rel)
+        if is_excluded(rel_path, exclude):
+            excluded_count += 1
+            continue
         if prefix_path and rel_path.is_relative_to(prefix_path):
             dest_rel = rel_path.relative_to(prefix_path)
         else:
@@ -62,6 +78,9 @@ def apply_manifest(manifest: dict[str, Any], fetched_root: Path, target: Path) -
                 if child.is_symlink():
                     continue
                 if child.is_file():
+                    if is_excluded(child.relative_to(fetched_root), exclude):
+                        excluded_count += 1
+                        continue
                     out = dest / child.relative_to(src)
                     out.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(child, out)
@@ -81,7 +100,7 @@ def apply_manifest(manifest: dict[str, Any], fetched_root: Path, target: Path) -
             d.rmdir()
 
     total_bytes = sum(p.stat().st_size for p in written)
-    return {'files': len(written), 'bytes': total_bytes}
+    return {'files': len(written), 'bytes': total_bytes, 'excluded': excluded_count}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -108,7 +127,8 @@ def main(argv: list[str] | None = None) -> int:
 
     est_tokens = summary['bytes'] // 4
     print(f"sync complete: {summary['files']} files, {summary['bytes']} bytes "
-          f"(~{est_tokens} tokens vendored on disk)")
+          f"(~{est_tokens} tokens vendored on disk); "
+          f"{summary['excluded']} excluded")
     if est_tokens > 30_000:
         # Not necessarily a problem since ADR-0002: only `corpus_index`
         # plus one `active_module` reaches the system prompt. Worth a look
