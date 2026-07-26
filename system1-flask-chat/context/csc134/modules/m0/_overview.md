@@ -87,7 +87,6 @@ an internal course-planning document, instantiated in `_assess-spec.STUB.md`.
 ## Numbering flag
 
 Per an internal course-planning document (row 10) and
-an internal course-planning document (open question 5): `assignments/m0/02_first_pull_request.md`
 teaches the full fork → branch → PR workflow. That contradicts ADR-004's
 student-flow rule (commit + push only, no branches/PRs before the capstone).
 This scaffold does not resolve that — see `_assets.md` for the flagged detail.

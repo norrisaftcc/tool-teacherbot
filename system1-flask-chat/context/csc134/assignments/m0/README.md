@@ -12,7 +12,6 @@ This module introduces students to the course environment and essential Git work
 | File | Type | Description |
 |------|------|-------------|
 | `01_workspace_setup.md` | Tutorial | GitHub Codespaces setup, customization, first compile |
-| `02_first_pull_request.md` | Lab | Complete GitHub workflow: fork, branch, commit, PR |
 
 ## Learning Objectives
 
@@ -25,7 +24,6 @@ By completing this module, students will:
 ## Pacing
 
 - `01_workspace_setup.md`: 1-2 hours (includes setup time)
-- `02_first_pull_request.md`: 1 hour
 
 ## Prerequisites
 

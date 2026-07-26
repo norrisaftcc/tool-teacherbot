@@ -303,6 +303,19 @@ def test_csc134_persona_is_not_algocratic():
     assert 'The Algorithm' not in persona
 
 
+def test_csc134_persona_teaches_the_mail_run_not_pull_requests():
+    """First-years submit with stage/commit/push — "the Mail Run". They are
+    not put in front of a pull request in this course at all. The original
+    persona claimed a fork/branch/commit/PR workflow, which would have had
+    the bot coaching week-1 students through a process the course
+    deliberately does not use."""
+    persona = load_skin_persona('csc134')
+    assert 'Mail Run' in persona
+    for step in ('git add', 'git commit', 'git push'):
+        assert step in persona, step
+    assert 'Do not teach pull requests' in persona
+
+
 def test_csc114_persona_preserves_algocratic_voice():
     """CSC 114 is a live cohort mid-pilot; the persona moved verbatim and
     must keep behaving exactly as it did before the split."""

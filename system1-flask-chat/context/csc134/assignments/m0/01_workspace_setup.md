@@ -110,4 +110,4 @@ You've completed this exercise when:
 
 ## Next Step
 
-Ready to learn the GitHub workflow? Continue to [Your First Pull Request](02_first_pull_request.md)!
+Ready to learn the GitHub workflow? Continue to the Mail Run — stage, commit, push!
