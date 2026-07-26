@@ -59,10 +59,10 @@ def load_bank(skin: str, module: str) -> dict[str, Any]:
     return yaml.safe_load(text[text.index(marker) + 1:])
 
 
-def compose(skin: str, module: str) -> tuple[str, str, str, str]:
+def compose(skin: str, module: str) -> tuple[str, str, str, str, str]:
     """Load the real inputs for (skin, module).
 
-    Returns (context, persona, composed_prompt, registry_model). The parts
+    Returns (context, persona, notes, composed_prompt, model). The parts
     are kept separate because the Anthropic path passes them to
     get_claude_response individually — running the eval through the same
     function the routes call is the whole point.
@@ -74,8 +74,9 @@ def compose(skin: str, module: str) -> tuple[str, str, str, str]:
 
     context = auth.load_skin_context(skin)
     persona = auth.load_skin_persona(skin)
-    prompt = claude_handler.build_system_prompt(context, persona)
-    return context, persona, prompt, auth.SKINS[skin]['model']
+    notes = auth.load_skin_notes(skin)
+    prompt = claude_handler.build_system_prompt(context, persona, notes)
+    return context, persona, notes, prompt, auth.SKINS[skin]['model']
 
 
 def ask_ollama(system: str, question: str, model: str, num_ctx: int) -> tuple[str, int]:
@@ -94,7 +95,7 @@ def ask_ollama(system: str, question: str, model: str, num_ctx: int) -> tuple[st
     return out['message']['content'], out.get('prompt_eval_count', 0)
 
 
-def ask_anthropic(context: str, persona: str, question: str,
+def ask_anthropic(context: str, persona: str, notes: str, question: str,
                   model: str) -> tuple[str, int]:
     """Route through the same function the chat endpoint calls.
 
@@ -107,7 +108,7 @@ def ask_anthropic(context: str, persona: str, question: str,
     from claude_handler import get_claude_response
 
     answer, tokens = get_claude_response(
-        context, [], question, model=model, persona=persona)
+        context, [], question, model=model, persona=persona, notes=notes)
     return answer, tokens
 
 
@@ -155,7 +156,7 @@ def main(argv: list[str] | None = None) -> int:
     args = p.parse_args(argv)
 
     bank = load_bank(args.skin, args.module)
-    context, persona, system, skin_model = compose(args.skin, args.module)
+    context, persona, notes, system, skin_model = compose(args.skin, args.module)
     estimate = len(system) // 4
     on_ollama = args.backend == 'ollama'
     model = args.model if on_ollama else skin_model
@@ -180,7 +181,7 @@ def main(argv: list[str] | None = None) -> int:
                 return 2
         else:
             answer, prompt_tokens = ask_anthropic(
-                context, persona, item['student'], model)
+                context, persona, notes, item['student'], model)
 
         found = flags_for(item, answer)
         flagged += bool(found)

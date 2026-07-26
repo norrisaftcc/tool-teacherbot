@@ -303,6 +303,41 @@ def test_csc134_persona_is_not_algocratic():
     assert 'The Algorithm' not in persona
 
 
+def test_csc134_teaching_notes_are_precise_about_warning_vs_error():
+    """Split out of the instructor answer keys, which stay out of the corpus
+    because they carry the answers. The pedagogy in them does not.
+
+    The precision here is load-bearing: a student at a terminal can falsify
+    the bot in one command, and the first run of the eval bank caught it
+    claiming g++ warns about a missing semicolon. It errors."""
+    from auth import load_skin_notes
+    notes = load_skin_notes('csc134')
+    assert 'Warning is not error' in notes
+    assert '-Wempty-body' in notes, 'the stray-semicolon case that really warns'
+    assert 'do not guess' in notes.lower()
+    for name in ('Syntax', 'Static semantic', 'Runtime', 'Logic'):
+        assert name in notes, name
+
+
+def test_csc114_declares_no_teaching_notes():
+    """Notes are optional. A skin without them composes a prompt with no
+    empty HOW THIS COURSE TEACHES heading."""
+    import claude_handler
+    from auth import load_skin_notes
+    assert load_skin_notes('csc114') == ''
+    prompt = claude_handler.build_system_prompt('ctx', 'persona', '')
+    assert 'HOW THIS COURSE TEACHES' not in prompt
+
+
+def test_teaching_notes_reach_the_composed_prompt():
+    import claude_handler
+    from auth import load_skin_notes
+    prompt = claude_handler.build_system_prompt(
+        'ctx', 'persona', load_skin_notes('csc134'))
+    assert 'HOW THIS COURSE TEACHES' in prompt
+    assert '-Wempty-body' in prompt
+
+
 def test_csc134_persona_teaches_the_mail_run_not_pull_requests():
     """First-years submit with stage/commit/push — "the Mail Run". They are
     not put in front of a pull request in this course at all. The original
