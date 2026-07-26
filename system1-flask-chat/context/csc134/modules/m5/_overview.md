@@ -5,7 +5,7 @@ light buffer; Loops is the natural place to absorb it)*
 
 **Big idea:** Iteration — repetition as a decomposition tool.
 
-> Verbatim from the spine (`_storming/CSC-134-course-spine.md`, "## M5 — Loops"):
+> Verbatim from the spine (an internal course-planning document, "## M5 — Loops"):
 > `while`, `do-while`, `for`; input validation (the `cin` fail-state,
 > bulletproofing); nested loops; the professional menu pattern. Verification
 > gets real: **trace tables and predict-then-run.** The turtle bridge is the
@@ -39,7 +39,7 @@ module — the Apply beat is *split* in two parts per the spine:
    **Level Up Stats** `for` loop, typed in full, table aligned and running
    clean.
 2. **Then the gradient opens for the rest of the module:** the menu system
-   arrives ~80% built (the `_contracts/m5_menu.cpp` shape); the student
+   arrives ~80% built (the an internal course-planning document shape); the student
    finishes the validation loop.
 
 Do not drift this position when the Apply tutorial is authored: M5 is not a
@@ -75,7 +75,7 @@ was moved, renamed, or edited to produce this scaffold.
 ## Contracts touched
 
 None edited. This is a structure-only skeleton pass — no Learn/Practice/Apply/
-Assess content authored, no edits to `_contracts/`, `_storming/`, `_tracking/`,
-or `assignments/`. `_contracts/m5_menu.cpp` is read-referenced but not
+Assess content authored, no edits to an internal course-planning document, an internal course-planning document, an internal course-planning document,
+or `assignments/`. an internal course-planning document is read-referenced but not
 modified. It's M5's canonical Apply/Assess anchor — the M4 gatekeeper wrapped
 in a validated menu loop.

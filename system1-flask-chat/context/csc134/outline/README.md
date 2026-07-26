@@ -5,7 +5,7 @@
 | Resource | Location | Purpose |
 |----------|----------|---------|
 | **Assignments** | `/assignments/` | Student-facing materials |
-| **Progress Tracking** | `/_tracking/course-manifest-csc134.yaml` | Deliverable status |
+| **Progress Tracking** | an internal course-planning document | Deliverable status |
 | **This Outline** | `/outline/` | Course structure overview |
 
 ## Course Overview
@@ -25,7 +25,7 @@ See [learning-path.md](learning-path.md) for grade milestones and badge requirem
 
 ## Module Summary
 
-For detailed deliverables, see the [course manifest](../_tracking/course-manifest-csc134.yaml).
+For detailed deliverables, see the course manifest.
 
 | Module | Name | Weeks | Assignments |
 |--------|------|-------|-------------|
@@ -61,7 +61,7 @@ Upon completion, students will be able to:
 This outline provides **summary information only**. Detailed tracking lives in the manifest:
 
 ```yaml
-# See /_tracking/course-manifest-csc134.yaml for:
+# See an internal course-planning document for:
 # - Complete deliverable lists per module
 # - Status of each assignment (complete/draft/planned)
 # - Progress percentages

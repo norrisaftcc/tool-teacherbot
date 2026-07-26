@@ -1,8 +1,8 @@
 # M8 — Module Learning Objectives (skeleton)
 
 **Status:** skeleton slots only — not authored objectives. Derived from
-`_storming/CSC-134-course-spine.md` ("## M8 — Capstone Miniproject") and
-`_storming/CSC-134-learning-objectives.md` ("### M8 — Capstone Miniproject").
+an internal course-planning document ("## M8 — Capstone Miniproject") and
+an internal course-planning document ("### M8 — Capstone Miniproject").
 Deep-build fills in beat-level detail; this file records the MLO shape and
 its CLO/CCL wiring so downstream beats (Learn/Practice/Apply/Assess) build
 against the same targets.
@@ -39,7 +39,7 @@ students should be able to design, code, test, and debug C++ language
 programs"* — and M8 is where the spine names it as directly, explicitly
 assessed rather than practiced piecemeal.
 
-The CCL crosswalk table (`_storming/CSC-134-course-spine.md`, "CCL crosswalk
+The CCL crosswalk table (an internal course-planning document, "CCL crosswalk
 (compliance anchor)") also names M8 explicitly for **Object-oriented**
 ("M7 (struct → class) + M8 (built on classes) — *genuinely covered*") and
 for **Design, code, test, debug** ("Whole spine; debugging as curriculum
@@ -81,7 +81,7 @@ capstone must exercise, not an error to average out.
       `_assess-spec.STUB.md`; not yet finalized.
 - [ ] Pinning down the spine's own open item on the **AI-permission line**:
       "currently permitted-and-logged on labs; formally owned at the
-      capstone (Assess)" (`_storming/CSC-134-course-spine.md`, AI
+      capstone (Assess)" (an internal course-planning document, AI
       collaboration policy section). MLO 8.4 requires documenting AI
       assistance, but the exact ownership boundary ("formally owned" — does
       this mean AI use becomes *unrestricted* at capstone, or *fully

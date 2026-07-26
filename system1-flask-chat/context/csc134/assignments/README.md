@@ -34,5 +34,5 @@ Examples:
 ## Tracking
 
 For detailed progress tracking, see:
-- `/_tracking/course-manifest-csc134.yaml` - Complete deliverable status
+- an internal course-planning document - Complete deliverable status
 - `/outline/` - Course structure overview

@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document maps weeks to topics and modules. For assignment details, see the [course manifest](../_tracking/course-manifest-csc134.yaml).
+This document maps weeks to topics and modules. For assignment details, see the course manifest.
 
 ---
 

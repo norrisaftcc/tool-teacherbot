@@ -8,7 +8,7 @@
 ## MLO slots
 
 Draft from the spine's M2 **Content** and **LPAA** lines
-(`_storming/CSC-134-course-spine.md`, ~line 136–158). Each slot names the
+(an internal course-planning document, ~line 136–158). Each slot names the
 *topic*, not the finished objective sentence.
 
 - **MLO-M2.1** — [TBD] Explain why multiple programming languages exist

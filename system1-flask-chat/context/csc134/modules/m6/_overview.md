@@ -5,7 +5,7 @@
 **Big idea:** Decomposition made literal — the Robot Sandwich steps become
 named, reusable, testable units. Code is *revised*, not just written.
 
-> Verbatim from the spine (`_storming/CSC-134-course-spine.md`, "## M6 —
+> Verbatim from the spine (an internal course-planning document, "## M6 —
 > Functions"): defining and calling functions; the **single-file convention
 > completed** (prototypes at top, `main` in the middle, definitions at the
 > bottom); parameters, return values; **pass-by-value vs. pass-by-reference**;
@@ -52,7 +52,7 @@ menu-driven program with a validated input loop — but that program is one long
 `main`, and the student has felt the pain of scrolling through 80+ lines to
 find the one block they need to fix. M6 is where the program's mass gets
 sorted into named, callable pieces — the same behavior, but findable and
-revisable. The frozen `_contracts/m5_menu.cpp` is the exact "M5-shaped
+revisable. The frozen an internal course-planning document is the exact "M5-shaped
 program" this module's signature refactor move starts from.)*
 
 ---
@@ -73,10 +73,9 @@ M3's `assignments/m1`/`m2` situation.
 ## Contracts touched
 
 None edited. This is a structure-only skeleton pass — no Learn/Practice/
-Apply/Assess content authored, no edits to `_contracts/`, `_storming/`,
-`_tracking/`, or `assignments/`. **Read-only reference note:** `_contracts/
-m5_menu.cpp`'s own header comment states "M6 refactors it into functions" —
+Apply/Assess content authored, no edits to an internal course-planning document, an internal course-planning document,
+an internal course-planning document, or `assignments/`. **Read-only reference note:** an internal course-planning document's own header comment states "M6 refactors it into functions" —
 this frozen file is the strong candidate canonical input for M6's Assess-beat
-refactor lab (see `_assess-spec.STUB.md`) and `_contracts/rubric-template.md`
+refactor lab (see `_assess-spec.STUB.md`) and an internal course-planning document
 is the frozen rubric shape every M6 lab tier ladder inherits. Neither file was
 modified by this pass.

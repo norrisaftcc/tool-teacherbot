@@ -1,8 +1,8 @@
 # M5 — Module Learning Objectives (skeleton)
 
 **Status:** skeleton slots only — not authored objectives. Derived from
-`_storming/CSC-134-course-spine.md` ("## M5 — Loops") and
-`_storming/CSC-134-learning-objectives.md` ("### M5 — Loops"). Deep-build
+an internal course-planning document ("## M5 — Loops") and
+an internal course-planning document ("### M5 — Loops"). Deep-build
 fills in beat-level detail; this file records the MLO shape and its CLO/CCL
 wiring so downstream beats (Learn/Practice/Apply/Assess) build against the
 same targets.

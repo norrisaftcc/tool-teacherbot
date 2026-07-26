@@ -6,7 +6,7 @@
 that also has behavior.* OOP lands here, time-aligned with CTI's complex-data
 module.
 
-> Verbatim from the spine (`_storming/CSC-134-course-spine.md`, "## M7 —
+> Verbatim from the spine (an internal course-planning document, "## M7 —
 > Structured Data & Objects"): a deliberate five-step progression — **raw
 > arrays** (declare/initialize/traverse; array/index vs. value) →
 > **parallel arrays** (used intentionally as a stepping stone, with in-code
@@ -79,5 +79,5 @@ instead in `_assets.md`, per F-001's not-yet-imported status for all four.
 ## Contracts touched
 
 None. This is a structure-only skeleton pass — no Learn/Practice/Apply/Assess
-content authored, no edits to `_contracts/`, `_storming/`, `_tracking/`, or
+content authored, no edits to an internal course-planning document, an internal course-planning document, an internal course-planning document, or
 `assignments/`.

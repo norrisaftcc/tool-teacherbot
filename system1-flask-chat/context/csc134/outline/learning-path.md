@@ -70,7 +70,7 @@ All assignments are evaluated on:
 
 ## Current Progress
 
-See the [course manifest](../_tracking/course-manifest-csc134.yaml) for detailed progress tracking:
+See the course manifest for detailed progress tracking:
 
 ```
 Modules Complete: M00, M01, M02 (100%)

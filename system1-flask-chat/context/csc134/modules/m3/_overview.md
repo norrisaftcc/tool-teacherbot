@@ -4,7 +4,7 @@
 
 **Big idea:** State — a program holds a changing world. Variables, types, I/O, arithmetic.
 
-> Verbatim from the spine (`_storming/CSC-134-course-spine.md`, "## M3 — Program Basics"):
+> Verbatim from the spine (an internal course-planning document, "## M3 — Program Basics"):
 > variables and data types; `cin`/`cout`; arithmetic and expressions; the
 > **single-file convention** introduced (prototypes-top / definitions-bottom is
 > filled in once functions arrive in M6 — M3 code lives entirely in `main`);
@@ -66,5 +66,5 @@ was moved, renamed, or edited to produce this scaffold.
 ## Contracts touched
 
 None. This is a structure-only skeleton pass — no Learn/Practice/Apply/Assess
-content authored, no edits to `_contracts/`, `_storming/`, `_tracking/`, or
+content authored, no edits to an internal course-planning document, an internal course-planning document, an internal course-planning document, or
 `assignments/`.

@@ -3,7 +3,7 @@
 > **Canonical home.** This `modules/m1/` tree is the spine-true scaffold for M1.
 > `assignments/m1/` is **legacy** and holds drifted content that actually belongs
 > to spine **M3** (Program Basics) — see this module's `_assets.md` and
-> `_tracking/numbering-reconciliation-map.md` (F-001) for the full reconciliation.
+> an internal course-planning document (F-001) for the full reconciliation.
 > Do not treat `assignments/m1/` as this module's home; it is a different module's
 > content sitting under an old number.
 
@@ -17,7 +17,7 @@
 | Weeks | ~Weeks 1–2 |
 | Sequence position | 2nd module (after M0, before M2) |
 
-**Big idea** (verbatim from `_storming/CSC-134-course-spine.md`):
+**Big idea** (verbatim from an internal course-planning document):
 > Plain text is the native language of both programming and professional
 > collaboration. Precise instructions come *before* code.
 
@@ -74,9 +74,9 @@ code?)*
 
 ## Cross-references
 
-- Spine section: `_storming/CSC-134-course-spine.md` — grep `## M1 —`
+- Spine section: an internal course-planning document — grep `## M1 —`
   (line ~118).
-- Rubric contract: `_contracts/rubric-template.md` (four columns, four tiers;
+- Rubric contract: an internal course-planning document (four columns, four tiers;
   M1's Robot Sandwich is the template's origin point per the spine).
 - Asset ledger: `modules/m1/_assets.md` (this module).
-- Legacy/numbering: `_tracking/numbering-reconciliation-map.md` (F-001).
+- Legacy/numbering: an internal course-planning document (F-001).

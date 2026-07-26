@@ -2,7 +2,7 @@
 
 > **SKELETON.** Structure only — no Learn/Practice/Apply/Assess lesson content
 > has been authored yet. This file is the module's identity card, built per
-> `_tracking/skeleton-plan.md` v0.6. The deep-build pass fills in the beats.
+> an internal course-planning document v0.6. The deep-build pass fills in the beats.
 
 ## Spine header
 
@@ -21,7 +21,7 @@ it.
 **Spine connection** *(verbatim)*: the module the course orbits — M8's rubric
 grades exactly these artifacts.
 
-Source: `_storming/CSC-134-course-spine.md`, `## M2 — How to Solve Problems`
+Source: an internal course-planning document, `## M2 — How to Solve Problems`
 (~line 136).
 
 ---

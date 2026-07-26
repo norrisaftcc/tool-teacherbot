@@ -5,7 +5,7 @@
 **Big idea:** The whole arc, run once, end to end, by you. The final exam is
 the spine *performed*.
 
-> Verbatim from the spine (`_storming/CSC-134-course-spine.md`, "## M8 —
+> Verbatim from the spine (an internal course-planning document, "## M8 —
 > Capstone Miniproject"): a three-part structure — **problem formulation**
 > (front-loaded and graded heavily: problem statement, user stories, spec,
 > flowchart — a design document due before any code) → **implementation**
@@ -81,5 +81,5 @@ project-shaped deliverables that plausibly belong here, tracked in
 ## Contracts touched
 
 None. This is a structure-only skeleton pass — no Learn/Practice/Apply/Assess
-content authored, no edits to `_contracts/`, `_storming/`, `_tracking/`, or
+content authored, no edits to an internal course-planning document, an internal course-planning document, an internal course-planning document, or
 `assignments/`.

@@ -23,7 +23,7 @@ skeleton does not invent CLO numbering.)*
 
 ## CCL-crosswalk touch
 
-Per the spine's CCL crosswalk table (`_storming/CSC-134-course-spine.md`,
+Per the spine's CCL crosswalk table (an internal course-planning document,
 line ~338), M1 has no named CCL topic row of its own. Its touch is indirect
 and foundational: M1 sits upstream of the CCL's coding topics, in the
 **Communication** strand:
@@ -42,7 +42,7 @@ table; that lives in the spine.
 
 ## Cross-references
 
-- Spine competency-thread table: `_storming/CSC-134-course-spine.md` lines
+- Spine competency-thread table: an internal course-planning document lines
   ~86–92 (Decompose into steps → M1; Communicate the result → M1).
-- CCL crosswalk table: `_storming/CSC-134-course-spine.md` line ~338.
+- CCL crosswalk table: an internal course-planning document line ~338.
 - Module identity: `modules/m1/_overview.md`.

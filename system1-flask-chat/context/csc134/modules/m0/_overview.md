@@ -19,7 +19,7 @@
 | Title | Welcome to Programming |
 | Phase | A |
 | Weeks | ~Week 1 |
-| Spine source | `_storming/CSC-134-course-spine.md`, "## M0 — Welcome to Programming" (line 102) |
+| Spine source | an internal course-planning document, "## M0 — Welcome to Programming" (line 102) |
 
 ## Big idea
 
@@ -54,7 +54,7 @@ is not an engineering skill.
 ## Make-gradient position
 
 **M0 sits before the Apply-beat gradient begins.** The gradient
-(`_contracts/rubric-template.md`, "Make-gradient note") is defined for
+(an internal course-planning document, "Make-gradient note") is defined for
 C++-authoring modules: **M2–M4 type-in-100%**, **M5–M7 finish-the-80%**,
 **M8 spec-only**. M0 has no C++ program to gradient-position yet — its Apply
 beat is instructor-led *environment setup*, not code construction. Treat M0's
@@ -78,16 +78,16 @@ pass, same as every other module's user story.
 
 ## Contract touch
 
-M0 does not touch a frozen `_contracts/` interface (no `m4_gatekeeper.cpp` /
+M0 does not touch a frozen an internal course-planning document interface (no `m4_gatekeeper.cpp` /
 `m5_menu.cpp` involvement at this stage). Its only inherited contract is
-`_contracts/rubric-template.md`, instantiated in `_assess-spec.STUB.md`.
+an internal course-planning document, instantiated in `_assess-spec.STUB.md`.
 
 ---
 
 ## Numbering flag
 
-Per `_tracking/numbering-reconciliation-map.md` (row 10) and
-`_tracking/skeleton-plan.md` (open question 5): `assignments/m0/02_first_pull_request.md`
+Per an internal course-planning document (row 10) and
+an internal course-planning document (open question 5): `assignments/m0/02_first_pull_request.md`
 teaches the full fork → branch → PR workflow. That contradicts ADR-004's
 student-flow rule (commit + push only, no branches/PRs before the capstone).
 This scaffold does not resolve that — see `_assets.md` for the flagged detail.
