@@ -26,7 +26,7 @@ is authored, not in this skeleton pass.)*
 
 ## CCL-crosswalk touch
 
-Per the spine's CCL crosswalk table (`_storming/CSC-134-course-spine.md`,
+Per the spine's CCL crosswalk table (an internal course-planning document,
 "## CCL crosswalk (compliance anchor)", lines 338–351), **M0 has no listed CCL
 element.** The crosswalk's first tracked element (input/output operations)
 begins at M3. M0 is orientation and toolchain setup — it precedes the CCL's

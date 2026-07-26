@@ -1,8 +1,8 @@
 # M3 — Module Learning Objectives (skeleton)
 
 **Status:** skeleton slots only — not authored objectives. Derived from
-`_storming/CSC-134-course-spine.md` ("## M3 — Program Basics") and
-`_storming/CSC-134-learning-objectives.md` ("### M3 — Program Basics").
+an internal course-planning document ("## M3 — Program Basics") and
+an internal course-planning document ("### M3 — Program Basics").
 Deep-build fills in beat-level detail. This file records the MLO shape and its
 CLO/CCL wiring, so downstream beats (Learn/Practice/Apply/Assess) build against
 the same targets.

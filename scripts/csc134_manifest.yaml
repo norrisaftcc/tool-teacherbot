@@ -31,3 +31,32 @@ paths:
 exclude:
   - '**/*-key.md'
   - '**/*.STUB.md'
+  # Asset-slotting notes: a porting ledger for the course author. Opens
+  # "SKELETON ONLY. Records intent and provenance; reconciles nothing;
+  # ports/moves/renames nothing." The body is PORT / DO NOT PORT rulings,
+  # non-clobber rules, and numbering-reconciliation rows — none of it
+  # student-facing, and ~40% of a module window's bytes. It is also where
+  # nearly every stale internal link lives.
+  - '**/_assets.md'
+
+# Rewrite vendored markdown. We vendor a subset of a repo whose documents
+# assume the whole repo, so cross-references can point at files that exist
+# upstream and not here. Observed live: asked about a due date, the bot
+# correctly declined to invent one and then sent the student to
+# `_tracking/course-manifest-csc134.yaml`, which does not exist in their
+# world. Neutralise the pointer rather than the sentence around it.
+# Order matters: the markdown-link rule must run first, or the later rules
+# rewrite the link *target* and leave a still-broken `[label](prose)`.
+# `_contracts/` and `_storming/` are the same kind of upstream-only planning
+# directory and appear in the same sentences; stripping one of three would
+# just look arbitrary.
+substitutions:
+  # [label](../_tracking/foo.md) -> label
+  - pattern: '\[([^\]]+)\]\(/?(?:\.\./)*_(?:tracking|contracts|storming)/[^)]*\)'
+    replace: '\1'
+  # `_tracking/foo.md` or `_tracking/` -> prose
+  - pattern: '`/?_(?:tracking|contracts|storming)/[^`]*`'
+    replace: 'an internal course-planning document'
+  # bare paths, e.g. inside fenced blocks
+  - pattern: '/?_(?:tracking|contracts|storming)/[A-Za-z0-9_.-]+'
+    replace: 'an internal course-planning document'

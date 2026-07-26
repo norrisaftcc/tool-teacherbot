@@ -4,7 +4,7 @@
 
 **Big idea:** Selection — the diamonds from M2's flowcharts, made executable.
 
-> Verbatim from the spine (`_storming/CSC-134-course-spine.md`, "## M4 —
+> Verbatim from the spine (an internal course-planning document, "## M4 —
 > Decisions"):
 > `if` / `else if` / `else`; `switch`; comparison and logical operators;
 > nested conditions. This is where **"filters" (CCL)** begins — conditionally
@@ -63,9 +63,9 @@ for M4.** `assignments/` is legacy source — frozen, not a scaffold target.
 Unlike M3, there is **no legacy `assignments/m4/` directory at all** — the
 legacy tree only holds `m0`, `m1`, `m2`. M4's pre-existing content instead
 lives under `_past_work/_claudes_input/03-decisions-week5-6/` and
-`_storming/`. See `_assets.md` for exactly which files those are and what
+an internal course-planning document. See `_assets.md` for exactly which files those are and what
 porting them into this tree will require. Nothing under `assignments/`,
-`_past_work/`, or `_storming/` was moved, renamed, or edited to produce this
+`_past_work/`, or an internal course-planning document was moved, renamed, or edited to produce this
 scaffold.
 
 ---
@@ -73,9 +73,9 @@ scaffold.
 ## Contracts touched
 
 None edited. This is a structure-only skeleton pass — no Learn/Practice/
-Apply/Assess content authored, no edits to `_contracts/`, `_storming/`,
-`_tracking/`, or `assignments/`. Note for deep-build: M4's Assess artifact
-will build **against** the frozen `_contracts/m4_gatekeeper.cpp` (the
+Apply/Assess content authored, no edits to an internal course-planning document, an internal course-planning document,
+an internal course-planning document, or `assignments/`. Note for deep-build: M4's Assess artifact
+will build **against** the frozen an internal course-planning document (the
 canonical Dungeon Gatekeeper decision program — read, not modified, during
 this pass). See `_assets.md` for its `CONTRACT` tag and the seam it sets up
-for M5's `_contracts/m5_menu.cpp`.
+for M5's an internal course-planning document.

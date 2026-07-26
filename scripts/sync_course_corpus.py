@@ -12,6 +12,7 @@ Run from the repo root:
 from __future__ import annotations
 
 import argparse
+import re
 import shutil
 import subprocess
 import sys
@@ -45,15 +46,38 @@ def is_excluded(rel: Path, patterns: list[str]) -> bool:
     return any(rel.match(pattern) for pattern in patterns)
 
 
+def compile_substitutions(raw: list[dict[str, str]]) -> list[tuple[re.Pattern, str]]:
+    """Compile manifest `substitutions` into (pattern, replacement) pairs."""
+    return [(re.compile(entry['pattern']), entry.get('replace', '')) for entry in raw]
+
+
+def apply_substitutions(text: str, subs: list[tuple[re.Pattern, str]]) -> tuple[str, int]:
+    """Rewrite `text`, returning the result and how many edits were made.
+
+    Vendoring takes a *subset* of a repo whose documents assume the whole
+    repo, so cross-references can point at files that exist upstream and
+    not here. A student following one finds nothing, and the bot will
+    happily repeat it — that behaviour was observed, not theorised.
+    """
+    total = 0
+    for pattern, replacement in subs:
+        text, n = pattern.subn(replacement, text)
+        total += n
+    return text, total
+
+
 def apply_manifest(manifest: dict[str, Any], fetched_root: Path, target: Path) -> dict[str, int]:
     """Copy manifest paths from `fetched_root` into `target`, deleting stragglers.
 
-    Returns a small summary dict: {'files': N, 'bytes': M, 'excluded': K}.
+    Returns a small summary dict:
+    {'files': N, 'bytes': M, 'excluded': K, 'rewrites': R}.
     """
     strip_prefix = manifest.get('strip_prefix', '') or ''
     prefix_path = Path(strip_prefix) if strip_prefix else None
     exclude = list(manifest.get('exclude') or [])
+    subs = compile_substitutions(manifest.get('substitutions') or [])
     excluded_count = 0
+    rewrite_count = 0
     written: set[Path] = set()
 
     for rel in manifest['paths']:
@@ -90,6 +114,20 @@ def apply_manifest(manifest: dict[str, Any], fetched_root: Path, target: Path) -
             shutil.copy2(src, dest)
             written.add(dest.resolve())
 
+    # Rewrite vendored markdown. Done here rather than at load time so the
+    # corpus on disk is exactly what the bot sees — a reviewer reading
+    # context/ should not have to mentally apply a regex to know what
+    # reaches the prompt.
+    if subs:
+        for path in sorted(written):
+            if path.suffix != '.md':
+                continue
+            original = path.read_text(encoding='utf-8')
+            rewritten, n = apply_substitutions(original, subs)
+            if n:
+                path.write_text(rewritten, encoding='utf-8')
+                rewrite_count += n
+
     # Delete anything in target that we didn't just write.
     for existing in list(target.rglob('*')):
         if existing.is_file() and existing.resolve() not in written:
@@ -100,7 +138,12 @@ def apply_manifest(manifest: dict[str, Any], fetched_root: Path, target: Path) -
             d.rmdir()
 
     total_bytes = sum(p.stat().st_size for p in written)
-    return {'files': len(written), 'bytes': total_bytes, 'excluded': excluded_count}
+    return {
+        'files': len(written),
+        'bytes': total_bytes,
+        'excluded': excluded_count,
+        'rewrites': rewrite_count,
+    }
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -128,7 +171,7 @@ def main(argv: list[str] | None = None) -> int:
     est_tokens = summary['bytes'] // 4
     print(f"sync complete: {summary['files']} files, {summary['bytes']} bytes "
           f"(~{est_tokens} tokens vendored on disk); "
-          f"{summary['excluded']} excluded")
+          f"{summary['excluded']} excluded, {summary['rewrites']} link(s) rewritten")
     if est_tokens > 30_000:
         # Not necessarily a problem since ADR-0002: only `corpus_index`
         # plus one `active_module` reaches the system prompt. Worth a look

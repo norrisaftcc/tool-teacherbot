@@ -216,6 +216,49 @@ def test_env_override_takes_a_bare_module_id(tmp_path, monkeypatch):
     assert module_window('csc134') == ['modules/m3', 'assignments/m3']
 
 
+def test_every_csc134_module_window_clears_the_haiku_cache_floor():
+    """Haiku 4.5 will not cache a prefix under 4096 tokens — silently, with
+    no error. ADR-0002's cost model assumes every module window caches, so
+    a corpus edit that thins a window below the floor is a real regression
+    that nothing else would catch.
+
+    Estimated at bytes/4; spot-checked against a real tokenizer at
+    0.97-1.04x, so the estimate is sound to a few percent. The thinnest
+    windows (m3, m5-m7) clear the floor by only 163-728 tokens, which is
+    exactly why this guard exists.
+    """
+    import os
+    import auth
+    import claude_handler
+
+    corpus = auth.CONTEXT_DIR / 'csc134'
+    if not corpus.is_dir():
+        pytest.skip('csc134 corpus not vendored in this checkout')
+
+    persona = load_skin_persona('csc134')
+    previous = os.environ.get('CSC134_ACTIVE_MODULE')
+    thin = {}
+    try:
+        for module_dir in sorted((corpus / 'modules').iterdir()):
+            if not module_dir.is_dir():
+                continue
+            os.environ['CSC134_ACTIVE_MODULE'] = module_dir.name
+            prompt = claude_handler.build_system_prompt(
+                load_skin_context('csc134'), persona)
+            estimate = len(prompt) // 4
+            if estimate < 4096:
+                thin[module_dir.name] = estimate
+    finally:
+        os.environ.pop('CSC134_ACTIVE_MODULE', None)
+        if previous is not None:
+            os.environ['CSC134_ACTIVE_MODULE'] = previous
+
+    assert not thin, (
+        f'module windows below the 4096-token cache floor: {thin} — these '
+        f'would silently stop caching for the whole cohort'
+    )
+
+
 def test_csc134_active_module_is_an_id_not_a_path():
     """Regression guard: `modules/m0` here would expand to
     `modules/modules/m0` and silently window nothing."""

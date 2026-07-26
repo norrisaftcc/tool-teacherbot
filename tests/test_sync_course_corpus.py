@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 from unittest.mock import patch
 
@@ -101,6 +102,7 @@ def test_apply_manifest_copies_listed_paths(tmp_path):
             'crosswalk.md', 'week-01/lesson.md', 'week-02/lesson.md'
         )),
         'excluded': 0,
+        'rewrites': 0,
     }
 
 
@@ -163,6 +165,91 @@ def test_absent_exclude_key_copies_everything(tmp_path):
 
     assert (target / 'week-01' / 'lesson.md').exists()
     assert summary['excluded'] == 0
+
+
+def test_substitutions_rewrite_vendored_markdown(tmp_path):
+    """We vendor a subset of a repo whose documents assume the whole repo,
+    so cross-references can point at files that exist upstream and not
+    here. Observed live: the bot sent a student to a _tracking/ path."""
+    fetched = _make_fixture_upstream(tmp_path)
+    week = fetched / 'planning' / 'pilot_su26' / 'week-01'
+    (week / 'notes.md').write_text(
+        'Per `_tracking/skeleton-plan.md` the rule holds.\n'
+        'See the [course manifest](../_tracking/manifest.yaml) for status.\n'
+    )
+
+    target = tmp_path / 'target'
+    target.mkdir()
+    manifest = {
+        'strip_prefix': 'planning/pilot_su26/',
+        'paths': ['planning/pilot_su26/week-01/'],
+        'substitutions': [
+            {'pattern': r'\[([^\]]+)\]\(/?(?:\.\./)*_tracking/[^)]*\)',
+             'replace': r'\1'},
+            {'pattern': '`/?_tracking/[^`]*`', 'replace': 'a planning doc'},
+        ],
+    }
+    summary = apply_manifest(manifest, fetched, target)
+
+    out = (target / 'week-01' / 'notes.md').read_text()
+    assert 'Per a planning doc the rule holds.' in out
+    assert 'See the course manifest for status.' in out
+    assert '_tracking' not in out
+    assert summary['rewrites'] == 2
+
+
+def test_link_substitution_runs_before_target_substitution(tmp_path):
+    """Ordering regression: rewriting a link *target* first leaves a
+    still-broken `[label](prose)`. The first pass of this feature shipped
+    exactly that bug."""
+    fetched = _make_fixture_upstream(tmp_path)
+    (fetched / 'planning' / 'pilot_su26' / 'week-01' / 'notes.md').write_text(
+        'See the [manifest](../_tracking/manifest.yaml).\n')
+
+    target = tmp_path / 'target'
+    target.mkdir()
+    manifest = {
+        'strip_prefix': 'planning/pilot_su26/',
+        'paths': ['planning/pilot_su26/week-01/'],
+        'substitutions': [
+            {'pattern': r'\[([^\]]+)\]\(/?(?:\.\./)*_tracking/[^)]*\)',
+             'replace': r'\1'},
+            {'pattern': '/?_tracking/[A-Za-z0-9_.-]+', 'replace': 'a planning doc'},
+        ],
+    }
+    apply_manifest(manifest, fetched, target)
+
+    out = (target / 'week-01' / 'notes.md').read_text()
+    assert out.strip() == 'See the manifest.'
+    assert '](' not in out, 'a markdown link whose target became prose'
+
+
+def test_absent_substitutions_key_leaves_content_untouched(tmp_path):
+    fetched = _make_fixture_upstream(tmp_path)
+    target = tmp_path / 'target'
+    target.mkdir()
+    manifest = {
+        'strip_prefix': 'planning/pilot_su26/',
+        'paths': ['planning/pilot_su26/week-01/'],
+    }
+    summary = apply_manifest(manifest, fetched, target)
+
+    assert (target / 'week-01' / 'lesson.md').read_text() == '# W1\n'
+    assert summary['rewrites'] == 0
+
+
+def test_vendored_csc134_corpus_has_no_upstream_only_links():
+    """Guard on what actually landed: a re-sync with a broken substitution
+    would otherwise quietly restore the dead pointers."""
+    corpus = (Path(__file__).resolve().parent.parent
+              / 'system1-flask-chat' / 'context' / 'csc134')
+    if not corpus.is_dir():
+        pytest.skip('csc134 corpus not vendored in this checkout')
+    offenders = [
+        p for p in corpus.rglob('*.md')
+        if re.search(r'_(tracking|contracts|storming)/', p.read_text(encoding='utf-8'))
+    ]
+    assert not offenders, f'upstream-only paths still referenced: {offenders}'
 
 
 def test_csc134_manifest_excludes_instructor_facing_files():
