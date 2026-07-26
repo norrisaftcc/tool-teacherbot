@@ -26,10 +26,18 @@ RESPONSE STYLE:
 """
 
 
-def build_system_prompt(course_context: str, persona: str | None = None) -> str:
-    """Compose the system prompt: who the assistant is, then what it knows."""
-    return f"""{persona or DEFAULT_PERSONA}
+def build_system_prompt(course_context: str, persona: str | None = None,
+                        notes: str | None = None) -> str:
+    """Compose the system prompt: who the assistant is, how this course
+    teaches, then what it knows.
 
+    The three parts are kept distinct because they change on different
+    clocks — the persona is voice and rarely moves, the notes are
+    course-wide pedagogy, and the context is windowed per module.
+    """
+    teaching = f'\nHOW THIS COURSE TEACHES:\n{notes}\n' if notes else ''
+    return f"""{persona or DEFAULT_PERSONA}
+{teaching}
 COURSE CONTEXT:
 {course_context}
 """
@@ -58,7 +66,8 @@ def _usage_total(usage) -> int:
     )
 
 
-def _system_blocks(course_context: str, persona: str | None) -> list[dict]:
+def _system_blocks(course_context: str, persona: str | None,
+                   notes: str | None = None) -> list[dict]:
     """The system prompt as a single cached block.
 
     The whole prompt is byte-stable for a given (skin, active module), so
@@ -69,7 +78,7 @@ def _system_blocks(course_context: str, persona: str | None) -> list[dict]:
     """
     return [{
         'type': 'text',
-        'text': build_system_prompt(course_context, persona),
+        'text': build_system_prompt(course_context, persona, notes),
         'cache_control': {'type': 'ephemeral', 'ttl': '1h'},
     }]
 
@@ -80,6 +89,7 @@ def get_claude_response(
     user_message: str,
     model: str | None = None,
     persona: str | None = None,
+    notes: str | None = None,
 ) -> tuple[str, int]:
     """
     Call Claude with context and conversation history.
@@ -90,6 +100,7 @@ def get_claude_response(
         user_message: The new message from the student
         model: Anthropic model id; defaults to module-level MODEL when omitted.
         persona: Per-skin persona markdown; defaults to DEFAULT_PERSONA.
+        notes: Per-skin course-wide teaching notes; omitted when empty.
 
     Returns:
         (response_text, total_tokens_used)
@@ -100,7 +111,7 @@ def get_claude_response(
         response = client.messages.create(
             model=model or MODEL,
             max_tokens=MAX_TOKENS,
-            system=_system_blocks(group_context, persona),
+            system=_system_blocks(group_context, persona, notes),
             messages=messages,
         )
     except Exception as e:
@@ -116,6 +127,7 @@ def stream_claude_response(
     user_message: str,
     model: str | None = None,
     persona: str | None = None,
+    notes: str | None = None,
 ) -> Generator[tuple[str, int], None, None]:
     """
     Stream Claude response token by token.
@@ -129,7 +141,7 @@ def stream_claude_response(
         with client.messages.stream(
             model=model or MODEL,
             max_tokens=MAX_TOKENS,
-            system=_system_blocks(group_context, persona),
+            system=_system_blocks(group_context, persona, notes),
             messages=messages,
         ) as stream:
             for text in stream.text_stream:

@@ -25,6 +25,7 @@ class Skin(TypedDict):
     display: str
     tagline: str
     persona_file: str         # relative to context/
+    notes_file: str | None    # course-wide teaching notes, or None
     header_file: str          # relative to context/
     corpus_dir: str | None    # relative to context/, or None if no corpus vendored
     corpus_index: list[str]   # always-on paths under corpus_dir (file or dir)
@@ -40,6 +41,7 @@ SKINS: dict[str, Skin] = {
         'display': 'CSC 114 — Fundamentals of AI/ML',
         'tagline': 'Summer 2026 pilot.',
         'persona_file': 'csc114_persona.md',
+        'notes_file': None,
         'header_file': 'csc114_context.md',
         'corpus_dir': 'csc114',
         'corpus_index': ['crosswalk.md'],
@@ -53,6 +55,11 @@ SKINS: dict[str, Skin] = {
         'display': 'CSC 134 — Introduction to Programming',
         'tagline': 'Fall 2026 cohort.',
         'persona_file': 'csc134_persona.md',
+        # Pedagogy split out of the instructor answer keys, which stay out
+        # of the corpus because they contain the answers. Always on rather
+        # than windowed: warning-vs-error and "never sprung" apply in every
+        # module, and the guidance is worthless the one week it is absent.
+        'notes_file': 'csc134_teaching_notes.md',
         'header_file': 'csc134_context.md',
         'corpus_dir': 'csc134',
         'corpus_index': ['outline'],
@@ -190,6 +197,30 @@ def load_skin_persona(slug: str) -> str:
             f'Persona missing for {slug}: expected {persona_path}.'
         )
     return persona_path.read_text(encoding='utf-8')
+
+
+def load_skin_notes(slug: str) -> str:
+    """Course-wide teaching notes for a skin, or '' if it declares none.
+
+    Separate from the persona because it is domain guidance rather than
+    voice, and separate from the corpus because it is always on rather
+    than windowed. Missing is a misconfiguration, not a normal state —
+    unlike the corpus, this file is hand-authored and small.
+    """
+    skin = SKINS.get(slug)
+    if skin is None:
+        raise KeyError(f'unknown skin: {slug!r}')
+
+    notes_file = skin.get('notes_file')
+    if not notes_file:
+        return ''
+
+    notes_path = CONTEXT_DIR / notes_file
+    if not notes_path.exists():
+        raise FileNotFoundError(
+            f'Teaching notes missing for {slug}: expected {notes_path}.'
+        )
+    return notes_path.read_text(encoding='utf-8')
 
 
 def load_skin_context(slug: str) -> str:

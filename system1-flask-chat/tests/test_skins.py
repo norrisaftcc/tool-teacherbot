@@ -15,6 +15,8 @@ def both_contexts(tmp_path, monkeypatch):
     (tmp_path / 'csc134_context.md').write_text('# csc134 header')
     (tmp_path / 'csc114_persona.md').write_text('# csc114 persona')
     (tmp_path / 'csc134_persona.md').write_text('# csc134 persona')
+    # csc134 declares teaching notes; csc114 declares none.
+    (tmp_path / 'csc134_teaching_notes.md').write_text('# csc134 teaching notes')
     return tmp_path
 
 
