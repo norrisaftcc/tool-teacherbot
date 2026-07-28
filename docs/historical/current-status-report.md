@@ -1,3 +1,9 @@
+> **HISTORICAL — do not act on this file.** It describes a project shape
+> (five capstone groups, two parallel systems) that the code stopped
+> matching in July 2026. Kept as a paper trail. For what is actually
+> true, read `docs/adr/`, `docs/registry/KEEP.md`, and
+> `system1-flask-chat/DEPLOY.md`.
+
 The "MVP" claim is suspect — the `system1-flask-chat/` directory only has `models.py`, a requirements file, and one test module. Let me read the design docs and what exists to confirm.
 
 Now I have the spec. Let me read what was actually implemented and the design guidelines in parallel.

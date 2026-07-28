@@ -1,3 +1,9 @@
+> **HISTORICAL — do not act on this file.** It describes a project shape
+> (five capstone groups, two parallel systems) that the code stopped
+> matching in July 2026. Kept as a paper trail. For what is actually
+> true, read `docs/adr/`, `docs/registry/KEEP.md`, and
+> `system1-flask-chat/DEPLOY.md`.
+
 # CLAUDE.md - System 2: Claude Code Distribution Framework
 
 **Your Role**: Create the distribution system for Claude Code CLI access with per-group API keys and pedagogical guardrails.
