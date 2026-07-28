@@ -106,7 +106,7 @@ Position taken in ADR-0004 §3: a frozen artifact survives, an open negotiation
 does not. Decides the `Exchange.frozen_at` column, so it cannot be deferred past
 the schema.
 
-*Status:* ADR-0004, Proposed.
+*Status:* ADR-0004, Proposed. Tracked in #20.
 
 ### K9 — Student identity under a shared cohort passcode
 
@@ -114,7 +114,7 @@ Position taken in ADR-0004 §1: cohort passcode plus a declared GitHub handle,
 explicitly unverified, adequate only because the instructor holds corroborating
 commit authorship and a capstone cohort is small.
 
-*Status:* ADR-0004, Proposed.
+*Status:* ADR-0004, Proposed. Tracked in #20.
 
 ### K10 — The budget's unit, owner, and denomination
 
@@ -128,14 +128,14 @@ measurement, not an inherited constant.
 *Evidence:* `system1-flask-chat/claude_handler.py:54-66`;
 `system1-flask-chat/models.py` (`DEFAULT_TOKEN_BUDGET`, `raise_budget_floor`).
 *Status:* partially addressed — the number was resized as a stopgap; the unit is
-still wrong.
+still wrong. Tracked in #20.
 
 ### K11 — What the repointed csc114 slot becomes
 
 Position taken in ADR-0005: the slot becomes the Prompt Wizard under the slug
 `algorithm`, on Sonnet, with the doctrine always-on rather than windowed.
 
-*Status:* ADR-0005, Proposed.
+*Status:* ADR-0005, Proposed. Tracked in #21.
 
 ### K12 — Retention of the CSC 114 pilot rows
 
@@ -144,7 +144,7 @@ transcripts are unreachable — the `Group` row stays in Postgres with no route 
 it. Default is *retain, unused*; dropping is cheap. The course lead decides,
 because it is their pilot data.
 
-*Status:* open. Blocks the ADR-0005 repoint — export first.
+*Status:* open. Blocks the ADR-0005 repoint — export first. Tracked in #22.
 
 ### K13 — Whether teacherbot teaches The Algorithm, and to whom
 
@@ -153,27 +153,27 @@ Position taken in ADR-0005: yes, at `/algorithm`, and **not** to CSC 134.
 are the far end of the linear-implementor side, so teaching them to hold a gate
 implements the opposite of what that register says.
 
-*Status:* ADR-0005, Proposed. Recorded here so it stops being reopened.
+*Status:* ADR-0005, Proposed. Tracked in #21. Recorded here so it stops being
+reopened.
 
 ---
 
 ## Backlog
 
-Each row carries its evidence. These are filed as issues; this table is the
-index.
+Each row carries its evidence and links to its issue. B11-B13 share one thread.
 
 | # | Item | Evidence |
 |---|---|---|
-| B1 | **Alembic / Flask-Migrate**, before the capstone produces transcripts anyone intends to grade. K6's escape hatch works once. | K6 |
-| B2 | **SHA-pin the corpus sync.** `fetch_upstream` uses `git clone --branch`, which cannot take a SHA, so every manifest tracks a moving branch and no provenance SHA is recorded. Prerequisite for ADR-0005. | `scripts/sync_course_corpus.py:33-38` |
-| B3 | **Pin `marked` and add SRI**, or vendor it into `static/js/`. Currently unpinned and unhashed, feeding `innerHTML`. Could not be done from the dev container — jsdelivr is unreachable through the proxy, and pinning to an unverified version would break rendering. | `system1-flask-chat/templates/chat.html:162`; `static/js/chat.js` |
-| B4 | **Admin auth is a URL query parameter.** `?password=…` lands in Render access logs and browser history. Replace with a POST form. Deferred by issue #2 and never tracked. | `system1-flask-chat/routes.py:271` |
-| B5 | **No CSRF protection.** `flask-wtf` is not in requirements. Deferred by issue #2 and never tracked. | `system1-flask-chat/requirements.txt` |
-| B6 | **`increment_tokens` has a read-modify-write race.** Two concurrent requests can both read the old value. Harmless at a cohort's message rate; not harmless as a graded ledger. | `system1-flask-chat/models.py:48` |
-| B7 | **Admin view is read-only.** No budget editing, no transcript reading — conversations are fetched and never rendered. | `system1-flask-chat/routes.py:269`; `templates/admin.html` |
-| B8 | **`--runs N` for the eval harness.** Each item runs once; `m0.yaml` already records `observed_variance: m0-02: 1 of 3 runs produced a code skeleton` and asks for a rate in writing. | `scripts/eval_persona.py:187`; `evals/csc134/m0.yaml` |
-| B9 | **Test deps ship to production.** `pytest` and `pytest-flask` are in the requirements file Render installs. | `system1-flask-chat/requirements.txt` |
-| B10 | **Stale root documentation.** ~3,269 lines across nine files describe a five-group project shape that no longer exists; `README.md` still advertises deleted credentials. | `README.md`, `CLAUDE.md`, and seven others |
-| B11 | **`.DS_Store` is tracked** at the root and in `design/`. `.gitignore` covers only the latter, which is inert since it is already tracked. | `.gitignore:219` |
-| B12 | **Flask-Login is vestigial.** Initialised, `load_user` returns `None`, auth is entirely session-based. Either use it or drop the dependency. | `system1-flask-chat/app.py` |
-| B13 | **`design/system1/*.jsx` are not wired into the app** and reference a `terminal.css` that no longer exists. | `docs/design/design-guidelines.md` |
+| [B1](https://github.com/norrisaftcc/tool-teacherbot/issues/23) | **Alembic / Flask-Migrate**, before the capstone produces transcripts anyone intends to grade. K6's escape hatch works once. | K6 |
+| [B2](https://github.com/norrisaftcc/tool-teacherbot/issues/24) | **SHA-pin the corpus sync.** `fetch_upstream` uses `git clone --branch`, which cannot take a SHA, so every manifest tracks a moving branch and no provenance SHA is recorded. Prerequisite for ADR-0005. | `scripts/sync_course_corpus.py:33-38` |
+| [B3](https://github.com/norrisaftcc/tool-teacherbot/issues/25) | **Pin `marked` and add SRI**, or vendor it into `static/js/`. Currently unpinned and unhashed, feeding `innerHTML`. Could not be done from the dev container — jsdelivr is unreachable through the proxy, and pinning to an unverified version would break rendering. | `system1-flask-chat/templates/chat.html:162`; `static/js/chat.js` |
+| [B4](https://github.com/norrisaftcc/tool-teacherbot/issues/26) | **Admin auth is a URL query parameter.** `?password=…` lands in Render access logs and browser history. Replace with a POST form. Deferred by issue #2 and never tracked. | `system1-flask-chat/routes.py:271` |
+| [B5](https://github.com/norrisaftcc/tool-teacherbot/issues/27) | **No CSRF protection.** `flask-wtf` is not in requirements. Deferred by issue #2 and never tracked. | `system1-flask-chat/requirements.txt` |
+| [B6](https://github.com/norrisaftcc/tool-teacherbot/issues/28) | **`increment_tokens` has a read-modify-write race.** Two concurrent requests can both read the old value. Harmless at a cohort's message rate; not harmless as a graded ledger. | `system1-flask-chat/models.py:48` |
+| [B7](https://github.com/norrisaftcc/tool-teacherbot/issues/29) | **Admin view is read-only.** No budget editing, no transcript reading — conversations are fetched and never rendered. | `system1-flask-chat/routes.py:269`; `templates/admin.html` |
+| [B8](https://github.com/norrisaftcc/tool-teacherbot/issues/30) | **`--runs N` for the eval harness.** Each item runs once; `m0.yaml` already records `observed_variance: m0-02: 1 of 3 runs produced a code skeleton` and asks for a rate in writing. | `scripts/eval_persona.py:187`; `evals/csc134/m0.yaml` |
+| [B9](https://github.com/norrisaftcc/tool-teacherbot/issues/31) | **Test deps ship to production.** `pytest` and `pytest-flask` are in the requirements file Render installs. | `system1-flask-chat/requirements.txt` |
+| [B10](https://github.com/norrisaftcc/tool-teacherbot/issues/32) | **Stale root documentation.** ~3,269 lines across nine files describe a five-group project shape that no longer exists; `README.md` still advertises deleted credentials. | `README.md`, `CLAUDE.md`, and seven others |
+| [B11](https://github.com/norrisaftcc/tool-teacherbot/issues/33) | **`.DS_Store` is tracked** at the root and in `design/`. `.gitignore` covers only the latter, which is inert since it is already tracked. | `.gitignore:219` |
+| [B12](https://github.com/norrisaftcc/tool-teacherbot/issues/33) | **Flask-Login is vestigial.** Initialised, `load_user` returns `None`, auth is entirely session-based. Either use it or drop the dependency. | `system1-flask-chat/app.py` |
+| [B13](https://github.com/norrisaftcc/tool-teacherbot/issues/33) | **`design/system1/*.jsx` are not wired into the app** and reference a `terminal.css` that no longer exists. | `docs/design/design-guidelines.md` |
