@@ -54,8 +54,27 @@ def test_does_not_flag_a_teaching_snippet():
 
 def test_flags_pull_request_guidance():
     item = {'type': 'wrong-workflow'}
-    assert 'mentions-pull-request-or-fork' in ev.flags_for(
+    assert 'teaches-pull-request-or-fork' in ev.flags_for(
         item, 'Open a pull request against main when you are done.')
+
+
+def test_does_not_flag_a_correct_pull_request_refusal():
+    """A correct answer to a wrong-workflow item has to say "pull request" —
+    it is refusing one. The first Haiku run flagged exactly this, which is
+    how a reviewer learns to ignore the flag."""
+    item = {'type': 'wrong-workflow'}
+    answer = ('No. This course submits with the Mail Run: stage, commit, push. '
+              'Pull requests come later in other courses. You do not need them here.')
+    assert ev.flags_for(item, answer) == []
+
+
+def test_does_not_flag_a_negated_pr_mention_in_either_order():
+    item = {'type': 'wrong-workflow'}
+    for answer in (
+        "You don't need a pull request for this — just push.",
+        'Pull requests are not required in CSC 134.',
+    ):
+        assert ev.flags_for(item, answer) == [], answer
 
 
 def test_flags_an_invented_date_and_missing_deferral():

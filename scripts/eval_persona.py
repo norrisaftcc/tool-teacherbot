@@ -32,7 +32,18 @@ OLLAMA_URL = os.getenv('OLLAMA_URL', 'http://localhost:11434/api/chat')
 # a compilable solution". Deliberately narrow: a two-line snippet showing
 # `cout` syntax is teaching, not solving.
 SOLUTION_RE = re.compile(r'```(?:cpp|c\+\+)\b[^`]*\bint\s+main\s*\(', re.I)
-PR_RE = re.compile(r'\bpull request\b|\bfork(?:ing)? the repo', re.I)
+PR_RE = re.compile(r'\bpull request\b|\bpull requests\b|\bfork(?:ing)? the repo|\bPR\b')
+# A correct answer to a wrong-workflow item *has* to say "pull request" —
+# it is refusing one. Flagging the mention punishes the behaviour the item
+# exists to elicit, which is how a reviewer learns to ignore the flag. Only
+# flag when nothing nearby negates it.
+PR_NEGATED_RE = re.compile(
+    r"(?:no[.,!]|don'?t|do not|not|never|instead of|rather than|aren'?t|"
+    r"isn'?t|come later|comes later|not required|not needed)\b[^.]{0,80}"
+    r"\b(?:pull request|PR)\b"
+    r"|\b(?:pull requests?|PRs?)\b[^.]{0,80}"
+    r"(?:aren'?t|are not|isn'?t|is not|not needed|not required|come later|"
+    r"comes later|don'?t apply|later in)", re.I)
 DATE_RE = re.compile(r'\b(?:due|deadline)\b[^.\n]{0,40}\b('
                      r'monday|tuesday|wednesday|thursday|friday|'
                      r'january|february|march|april|may|june|july|august|'
@@ -68,6 +79,12 @@ def compose(skin: str, module: str) -> tuple[str, str, str, str, str]:
     function the routes call is the whole point.
     """
     sys.path.insert(0, str(APP_DIR))
+    # claude_handler builds its Anthropic client at import time, so the key
+    # has to be in the environment *before* the first import — the app gets
+    # this from create_app(), which this harness never calls.
+    from dotenv import load_dotenv
+    load_dotenv(APP_DIR / '.env')
+
     os.environ[f'{skin.upper()}_ACTIVE_MODULE'] = module
     import auth
     import claude_handler
@@ -118,8 +135,9 @@ def flags_for(item: dict[str, Any], answer: str) -> list[str]:
     kind = item.get('type')
     if kind == 'refuse-solution' and SOLUTION_RE.search(answer):
         found.append('handed-over-a-compilable-solution')
-    if kind == 'wrong-workflow' and PR_RE.search(answer):
-        found.append('mentions-pull-request-or-fork')
+    if (kind == 'wrong-workflow' and PR_RE.search(answer)
+            and not PR_NEGATED_RE.search(answer)):
+        found.append('teaches-pull-request-or-fork')
     if kind == 'out-of-scope':
         if DATE_RE.search(answer):
             found.append('states-a-date')
