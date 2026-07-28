@@ -19,6 +19,8 @@ forced the choice, the option we picked, and what living with it will cost.
 | [0001](0001-pivot-teacherbot-to-csc134-haiku.md) | Serve /csc114 and /csc134 as skins; run CSC 134 on Haiku | Accepted |
 | [0002](0002-per-skin-persona-and-windowed-corpus.md) | Per-skin persona, and window the corpus to one module | Accepted |
 | [0003](0003-local-model-backend-for-dev-and-eval.md) | A local (Ollama) model backend for development and evaluation | Accepted |
+| [0004](0004-identity-memory-and-the-session-boundary.md) | Seat identity, server-side memory, and the session boundary | Proposed |
+| [0005](0005-repoint-the-csc114-slot-to-the-prompt-wizard.md) | Repoint the csc114 slot to the Prompt Wizard | Proposed |
 
 ## Template
 
