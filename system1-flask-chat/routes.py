@@ -120,6 +120,10 @@ def skin_blueprint(slug: str) -> Blueprint:
             group = Group(name=slug, clearance_level=skin_entry['clearance'])
             db.session.add(group)
             db.session.commit()
+        elif group.raise_budget_floor():
+            # Existing rows predate the budget resize and cannot be fixed by
+            # the column default — see Group.raise_budget_floor.
+            db.session.commit()
 
         return redirect(url_for(f'skin_{slug}.chat'))
 

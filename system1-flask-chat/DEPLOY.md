@@ -26,6 +26,22 @@ procedure documented in `docs/superpowers/plans/2026-05-16-render-deployment.md`
 | `ADMIN_PASSWORD` | Chosen string. Gates `/<slug>/admin?password=…` per skin (e.g. `/csc114/admin?password=…`). Alpha-grade auth — replace before public use. |
 | `DATABASE_URL` | Connection string from the `teacherbot-db` instance. `app.py:18-21` rewrites `postgres://` and `postgresql://` to `postgresql+psycopg://`. |
 
+**`FLASK_SECRET_KEY` and `ADMIN_PASSWORD` are now hard requirements.** They
+used to fall back to `dev-secret` and `admin`, so a service missing either
+came up looking healthy while signing session cookies with a value published
+in this public repo — anyone could forge `session['skin']` and skip the
+cohort passcode. `create_app` now raises at startup instead. If a deploy
+fails with *"Refusing to start: … not set"*, that is this check; set the
+variable and redeploy.
+
+## Optional environment variables
+
+| Variable | Effect |
+|---|---|
+| `<SLUG>_ACTIVE_MODULE` | Advance the corpus window without a commit, e.g. `CSC134_ACTIVE_MODULE=m3`. A value that resolves to no corpus path is logged and ignored rather than blanking the prompt. |
+| `CSC134_PASSCODE` | Override the cohort passcode in `auth.py`. Set this to rotate without publishing the new value in a public commit. |
+| `GROUP_TOKEN_BUDGET` | Per-cohort token ceiling for newly created groups (default 25,000,000). Existing rows are lifted to the default at next login — a column default only applies on INSERT, and there is no migrations framework. |
+
 Read or update env vars:
 
 ```bash
