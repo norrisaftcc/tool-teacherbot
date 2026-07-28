@@ -49,7 +49,11 @@ SKINS: dict[str, Skin] = {
         'module_paths': ['{module}'],
     },
     'csc134': {
-        'password': 'csc134-tbd',
+        # Encodes the term so a student reading the passcode sees which
+        # section they are in. Env-overridable because this repo is public:
+        # rotating the passcode should be a Render dashboard edit, not a
+        # commit that publishes the new value alongside the old one.
+        'password': os.getenv('CSC134_PASSCODE', 'csc134-26fa'),
         'model': 'claude-haiku-4-5-20251001',
         'clearance': 'ORANGE',
         'display': 'CSC 134 — Introduction to Programming',

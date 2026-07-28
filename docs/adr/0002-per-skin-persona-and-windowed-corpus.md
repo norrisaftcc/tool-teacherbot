@@ -1,6 +1,6 @@
 # ADR-0002: Per-skin persona, and window the corpus to one module
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-07-25
 - **Deciders:** norrisaftcc (product), Claude Code (implementation)
 
