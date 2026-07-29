@@ -217,3 +217,7 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 design/.DS_Store
+
+# Test-only JS tooling (package.json is committed and pins marked; the
+# installed tree is not). The app ships no JavaScript build.
+node_modules/

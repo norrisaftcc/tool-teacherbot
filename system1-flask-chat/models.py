@@ -25,7 +25,45 @@ db = SQLAlchemy()
 # x ~27.5k = ~24.75M. This is a stopgap and the unit is still wrong — the
 # budget belongs on a seat, not a cohort, so one verbose student cannot
 # lock out the class. That is ADR-0004's call.
-DEFAULT_TOKEN_BUDGET = int(os.getenv('GROUP_TOKEN_BUDGET', 25_000_000))
+_FALLBACK_TOKEN_BUDGET = 25_000_000
+
+
+def _budget_from_env(raw: str | None) -> int:
+    """Parse GROUP_TOKEN_BUDGET, or fail with something an operator can act on.
+
+    This runs at import, so a bad value takes the whole app down before a
+    single request. `int()` alone raises a bare ValueError from the middle of
+    a module import — in Render's logs that is a stack trace with no mention
+    of which variable is wrong, on a service that was working an hour ago.
+
+    Zero and negatives are rejected rather than accepted: a budget of 0 makes
+    `tokens_remaining <= 0` true immediately, so every student in the cohort
+    is told "Token budget exhausted. Contact your instructor." and the
+    instructor finds a healthy service serving a locked-out class. Refusing
+    to boot is the better failure, same reasoning as app._require_secrets.
+    """
+    if raw is None or raw.strip() == '':
+        return _FALLBACK_TOKEN_BUDGET
+
+    try:
+        value = int(raw)
+    except ValueError:
+        raise RuntimeError(
+            f'GROUP_TOKEN_BUDGET must be an integer number of tokens, '
+            f'got {raw!r}. Unset it to use the default '
+            f'({_FALLBACK_TOKEN_BUDGET:,}).'
+        ) from None
+
+    if value <= 0:
+        raise RuntimeError(
+            f'GROUP_TOKEN_BUDGET must be positive, got {value}. A budget of '
+            f'zero or less locks out every student in the cohort on their '
+            f'first message.'
+        )
+    return value
+
+
+DEFAULT_TOKEN_BUDGET = _budget_from_env(os.getenv('GROUP_TOKEN_BUDGET'))
 
 
 class Group(db.Model):
