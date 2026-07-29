@@ -29,6 +29,35 @@ def logout():
     return redirect(url_for('main.index'))
 
 
+@main.route('/healthz')
+def healthz():
+    """Liveness that actually touches Postgres. Render's health check path.
+
+    `/` renders the picker straight from the in-memory SKINS dict and never
+    queries anything, so it returns 200 over a database that does not
+    exist. That is not hypothetical: on 2026-07-29 the free-tier database
+    was deleted by its 30-day expiry, `db.create_all()` had just stopped
+    running at boot (ADR-0006), and the service came up "live" serving a
+    cohort picker while every login 500'd. Render's health check saw 200
+    and agreed. See #38.
+
+    So this executes a real query. A deploy whose DATABASE_URL is wrong, or
+    whose preDeployCommand migration failed, now fails its health check
+    instead of going live broken.
+
+    The error is logged, never returned — a 503 body is public.
+    """
+    from sqlalchemy import text
+    from models import db
+
+    try:
+        db.session.execute(text('SELECT 1'))
+    except Exception as e:
+        current_app.logger.error(f'healthz: database unreachable: {e}')
+        return jsonify({'status': 'error', 'database': 'unreachable'}), 503
+    return jsonify({'status': 'ok', 'database': 'ok'}), 200
+
+
 # ---------------------------------------------------------------------------
 # Skin blueprint factory: one instance per SKIN, registered at /<slug>.
 # ---------------------------------------------------------------------------

@@ -1,66 +1,95 @@
-# Render Blueprint for System 1 (teacherbot).
+# Render Blueprint for System 1 (teacherbot), Pro tier.
 #
-# This is now the canonical bootstrap. The dashboard's Blueprint flow requires
-# a payment method on file, which was the reason the original deploy went
-# through CLI + REST instead (docs/superpowers/plans/2026-05-16-render-deployment.md,
-# still accurate for that path). On Pro tier that gate is satisfied, so
-# "New Blueprint" reproduces the whole stack from this file.
+# This is the canonical bootstrap. Applying it from the dashboard requires a
+# payment method on file, which is why the original 2026-05 deploy went
+# through CLI + REST instead; Pro satisfies that gate, so "New Blueprint"
+# against this file reproduces the whole stack in one apply.
 #
-# BEFORE APPLYING: the three `plan:` values below are placeholders. See the
-# note above each one — a wrong value silently provisions the wrong tier, and
-# on the database that means re-inheriting the 30-day expiry this rebuild
-# exists to escape.
+# ---------------------------------------------------------------------------
+# BEFORE APPLYING — two things, both of which fail loudly if skipped
+# ---------------------------------------------------------------------------
+#
+# 1. Replace the three `plan:` placeholders below with real paid plan
+#    identifiers from the Render dashboard. They are deliberately invalid so
+#    an unedited apply errors instead of silently provisioning free tier and
+#    re-inheriting the 30-day database expiry that deleted the last one.
+#
+# 2. Names must not collide with the legacy stack. The old `teacherbot`
+#    service still exists in this workspace (its database is already gone —
+#    expired 2026-06-ish, confirmed by a host-resolution failure in the
+#    2026-07-29 logs). This file therefore uses `teacherbot-pro`. Once the
+#    legacy service is suspended and deleted, renaming these back to
+#    `teacherbot` is a one-line change plus a re-apply — the URL changes with
+#    it, so do that before handing the address to a cohort, not after.
 
 services:
   - type: web
-    name: teacherbot
+    name: teacherbot-pro
     env: python
-    # Placeholder — replace with the paid web plan from the Render dashboard.
-    # Free-tier web services spin down after ~15 minutes idle and cold-start in
-    # 30-60s, which is the whole first minute of a class period.
+    # Placeholder — replace with the paid web plan identifier.
+    # Free web services spin down after ~15 minutes idle and cold-start in
+    # 30-60s, which is the first minute of a class period, and it would
+    # distort the cache timings tests/test_live_anthropic.py measures.
     plan: REPLACE_WITH_PAID_WEB_PLAN
     rootDir: system1-flask-chat
     buildCommand: pip install -r requirements.txt
-    # Applies migrations before the new version takes traffic (ADR-0006).
-    # Pre-deploy commands are a paid-plan feature. If this fails the deploy is
-    # blocked, which is correct — a half-migrated database serving requests is
-    # worse than no deploy.
+
+    # Runs migrations before the new version takes traffic (ADR-0006).
+    # Pre-deploy commands are a paid-plan feature. A failed migration blocks
+    # the deploy and leaves the previous version serving, which is correct:
+    # fix forward, do not roll the service back to escape a bad migration.
     preDeployCommand: flask db upgrade
+
     startCommand: gunicorn "app:create_app()"
     autoDeploy: true
+
+    # Must touch the database. `/` renders the picker from the in-memory
+    # SKINS dict and returns 200 over a database that does not exist — that
+    # is exactly how the legacy service reported healthy on 2026-07-29 while
+    # every login 500'd (#38). /healthz runs SELECT 1 and 503s on failure, so
+    # a mis-linked DATABASE_URL or a failed migration fails the deploy
+    # instead of going live broken.
+    healthCheckPath: /healthz
+
     envVars:
-      # create_app() raises at startup if either secret is missing — there are
-      # deliberately no fallbacks, because the old ones ('dev-secret', 'admin')
-      # are published in this public repo.
+      # create_app() raises at startup if either secret is missing — there
+      # are deliberately no fallbacks, because the old ones ('dev-secret',
+      # 'admin') are published in this public repo.
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: FLASK_SECRET_KEY
         sync: false
       - key: ADMIN_PASSWORD
         sync: false
-      # Required by `flask db upgrade` in preDeployCommand.
+      # Required by `flask db upgrade` in preDeployCommand — without it the
+      # pre-deploy step fails before the app is ever built.
       - key: FLASK_APP
         value: app:create_app
       - key: DATABASE_URL
         fromDatabase:
-          name: teacherbot-db
+          name: teacherbot-pro-db
           property: connectionString
 
 databases:
-  - name: teacherbot-db
+  - name: teacherbot-pro-db
     # Placeholder — replace with the paid Postgres plan identifier.
     # Do NOT leave this as `free`: free Postgres carries a 30-day rolling
-    # expiry, which is what killed the previous instance and what makes graded
-    # transcripts impossible to keep.
+    # expiry, and that expiry is what deleted the previous database out from
+    # under a running service.
     plan: REPLACE_WITH_PAID_DB_PLAN
 
-  # Rehearsal target for migrations (ADR-0006 §5, register K15). Narrow job on
-  # purpose: a migration is applied here first, then to main. The test suite
-  # runs on SQLite, which accepts things Postgres rejects — type changes,
-  # constraints added against existing data, a non-null column on a populated
-  # table. Only a Postgres run proves a migration survives real data.
+  # Rehearsal target for migrations (ADR-0006 §5, register K15). Narrow job
+  # on purpose, so it does not drift into a half-maintained production clone:
+  # a migration is applied here first, then to main.
+  #
+  # The reason it exists: the test suite runs on SQLite, which accepts things
+  # Postgres rejects — type changes, constraints added against existing data,
+  # a non-null column on a populated table. tests/test_migrations.py proves a
+  # migration matches the models; only a Postgres run proves it survives real
+  # data.
   #
   # Nothing deploys against this automatically. Point a one-off shell at it:
-  #     DATABASE_URL=<staging-internal-url> flask db upgrade
-  - name: teacherbot-db-staging
+  #     DATABASE_URL=<staging-internal-url> FLASK_APP=app:create_app \
+  #       flask db upgrade
+  - name: teacherbot-pro-db-staging
     plan: REPLACE_WITH_PAID_DB_PLAN
