@@ -1,3 +1,9 @@
+---
+title: CSC 114 Pilot Cohort — Corpus-Aware Cohort Spike
+date: 2026-05-22
+status: superseded
+---
+
 > **SUPERSEDED — do not act on this document.**
 >
 > A May 2026 plan for a stack that no longer exists. It provisions free-tier
@@ -9,14 +15,10 @@
 > It is kept for the reasoning, not the steps. Current operator truth is
 > `system1-flask-chat/DEPLOY.md`; current decisions are `docs/registry/KEEP.md`.
 >
-> This banner exists because the file opens by instructing an agent to execute
-> it task-by-task, which is the one kind of stale document that can do damage.
-
----
-title: CSC 114 Pilot Cohort — Corpus-Aware Cohort Spike
-date: 2026-05-22
-status: approved
----
+> This banner exists because the file is written as executable steps. It used to
+> open with a directive telling an agent to work through it task-by-task; that
+> directive was struck in July 2026 (K19), because a superseded document whose
+> first line is an imperative gets acted on before the banner is read.
 
 # CSC 114 Pilot Cohort Design
 

@@ -3,6 +3,10 @@
 > matching in July 2026. Kept as a paper trail. For what is actually
 > true, read `docs/adr/`, `docs/registry/KEEP.md`, and
 > `system1-flask-chat/DEPLOY.md`.
+>
+> Paths in the body still read `docs/plans/`. That directory was folded into
+> `docs/historical/plans/` in July 2026. The body is left as written, because it
+> records what was observed at the time, not where the files live now.
 
 The "MVP" claim is suspect — the `system1-flask-chat/` directory only has `models.py`, a requirements file, and one test module. Let me read the design docs and what exists to confirm.
 

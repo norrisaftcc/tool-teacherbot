@@ -24,8 +24,7 @@ directory does not exist — see `docs/historical/`.
 | `scripts/eval_persona.py` | Runs a behaviour bank against the real composed prompt. |
 | `scripts/export_group_transcripts.py` | Exports a cohort's transcripts before its skin is unregistered (K12). |
 | `evals/csc134/m0.yaml` | The only behaviour bank so far. |
-| `docs/historical/` | Superseded planning docs. Bannered, do not act on them. |
-| `docs/superpowers/` | Also superseded, also bannered. Kept separate because these are May 2026 *executable* plans — they open by telling an agent to work through them task-by-task, and they provision a free-tier stack that no longer exists. Do not act on them either. |
+| `docs/historical/` | Every superseded planning doc, bannered. Do not act on them. `plans/` and `specs/` are the May 2026 *executable* plans, written as task-by-task steps against a free-tier stack that no longer exists. Their agent-mandate directives were struck under K19. |
 
 ## Live service
 

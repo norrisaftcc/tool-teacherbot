@@ -1,6 +1,14 @@
 # System 1: Flask Chat Interface — Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+> **HISTORICAL — do not act on this file.** The May 2026 build plan for the MVP:
+> five hardcoded group credentials, SQLite, Flask-Login, no corpus window, no
+> migrations. It targets a design that ADR-0001, ADR-0002 and ADR-0006 have since
+> replaced, and it points at `SYSTEM1_CLAUDE.md`, which now lives in
+> `docs/historical/`. Kept as a paper trail. For what is actually true, read
+> `docs/adr/`, `docs/registry/KEEP.md`, and `system1-flask-chat/DEPLOY.md`.
+>
+> *This was written for task-by-task execution by an agent; it records how the
+> work was sequenced, not how to sequence work now.*
 
 **Goal:** Build a group-authenticated Flask web chat that injects per-group project context into Claude responses and logs all conversations to SQLite.
 
@@ -12,7 +20,7 @@
 
 ## Pre-Task: Read These First
 
-- `docs/plans/2026-05-12-system1-design.md` — approved design (routes, models, error handling)
+- `docs/historical/plans/2026-05-12-system1-design.md` — approved design (routes, models, error handling)
 - `docs/design/design-guidelines.md` — UI spec (check before writing any CSS/HTML; designer may have updated it)
 - `SYSTEM1_CLAUDE.md` — additional context on pedagogical prompt structure
 

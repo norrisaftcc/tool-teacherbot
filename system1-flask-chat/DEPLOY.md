@@ -2,7 +2,7 @@
 
 This document describes how `teacherbot` is deployed on Render and how to
 operate it. The deploy was originally provisioned by a one-time bootstrap
-procedure documented in `docs/superpowers/plans/2026-05-16-render-deployment.md`.
+procedure documented in `docs/historical/plans/2026-05-16-render-deployment.md`.
 
 ## Service summary
 
@@ -267,7 +267,7 @@ curl -sS -o /dev/null -w '%{http_code}\n' https://<service>.onrender.com/
 ```
 
 The CLI + REST procedure in
-`../docs/superpowers/plans/2026-05-16-render-deployment.md` still works and is
+`../docs/historical/plans/2026-05-16-render-deployment.md` still works and is
 the fallback if the Blueprint flow is unavailable.
 
 The real smoke test after any deploy is a `/csc134/` login: `do_login` queries
