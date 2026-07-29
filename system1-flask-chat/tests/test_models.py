@@ -1,5 +1,39 @@
 import pytest
-from models import DEFAULT_TOKEN_BUDGET, Group, Conversation, Message
+from models import (
+    DEFAULT_TOKEN_BUDGET, _FALLBACK_TOKEN_BUDGET, _budget_from_env,
+    Group, Conversation, Message,
+)
+
+
+# ---- GROUP_TOKEN_BUDGET parsing -------------------------------------------
+#
+# Parsed at import, so a bad value takes the app down before any request.
+# The error has to name the variable — a bare ValueError from mid-import
+# tells an operator nothing about which env var to fix.
+
+@pytest.mark.parametrize('raw', [None, '', '   '])
+def test_budget_falls_back_when_unset(raw):
+    assert _budget_from_env(raw) == _FALLBACK_TOKEN_BUDGET
+
+
+def test_budget_accepts_a_valid_override():
+    assert _budget_from_env('5000000') == 5_000_000
+
+
+@pytest.mark.parametrize('raw', ['lots', '25_000_000x', '1e6', '3.5'])
+def test_budget_rejects_non_integers_by_name(raw):
+    with pytest.raises(RuntimeError) as excinfo:
+        _budget_from_env(raw)
+    assert 'GROUP_TOKEN_BUDGET' in str(excinfo.value)
+
+
+@pytest.mark.parametrize('raw', ['0', '-1'])
+def test_budget_rejects_zero_and_negative(raw):
+    """A budget of zero locks out the cohort on their first message, and the
+    service looks perfectly healthy while doing it."""
+    with pytest.raises(RuntimeError) as excinfo:
+        _budget_from_env(raw)
+    assert 'positive' in str(excinfo.value)
 
 def test_group_defaults(app):
     with app.app_context():

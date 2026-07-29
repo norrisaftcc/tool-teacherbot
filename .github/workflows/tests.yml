@@ -28,9 +28,24 @@ jobs:
       - name: Install dependencies
         run: pip install -r system1-flask-chat/requirements.txt
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install test-only JS tooling
+        # Just marked, pinned in package.json. Without it
+        # test_chat_js_rendering.py skips, and the XSS guard on chat.js
+        # silently stops being enforced — a skipped security test reads
+        # identical to a passing one in the summary line.
+        run: npm ci
+
       - name: Run both suites
-        # No ANTHROPIC_API_KEY needed. claude_handler builds its client at
-        # import time, but Anthropic(api_key=None) constructs fine — only
-        # calls fail, and every test mocks them. Do not add the secret here:
-        # a workflow that can reach the API is a workflow that can spend on it.
+        # No ANTHROPIC_API_KEY here, and that is still deliberate: these are
+        # the tests that run on every PR, including from forks, which cannot
+        # read secrets. Everything that talks to Anthropic is mocked.
+        #
+        # Tests that hit the real API live in live.yml behind the `live`
+        # marker, on workflow_dispatch plus a weekly schedule. pytest.ini
+        # deselects that marker by default, so this run stays offline and
+        # free no matter what gets added to the suite.
         run: python -m pytest -q

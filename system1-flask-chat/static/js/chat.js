@@ -1,4 +1,66 @@
 // chat.js — streaming message handler
+
+// marked stopped sanitizing at v5, and its output goes to innerHTML below,
+// so raw HTML in a model response would execute — an <img onerror=…> quoted
+// out of the corpus, or reflected back from something a student pasted in.
+//
+// The fix is a renderer override, not pre-escaping the input. Pre-escaping
+// looks simpler and is wrong: marked then escapes the ampersands we just
+// introduced, so `cout << "hi"` reaches the student as `cout &lt;&lt; "hi"`.
+// That corrupts the stream operator in every C++ example this course
+// serves, and it also eats blockquotes, because a leading `>` is markdown
+// syntax. Measured against marked 18, not assumed.
+//
+// Overriding renderer.html leaves the parser alone — headings, emphasis,
+// lists, links, tables, blockquotes and fenced code all render normally —
+// and turns raw HTML into visible text, which is the honest outcome for a
+// bot whose job is quoting course material.
+//
+// No DOMPurify: that would be another unpinned CDN script, which is the
+// problem in #25, not the solution to it.
+//
+// Today the blast radius is mostly a student's own session. #29 (an admin
+// transcript view) is what turns this into stored XSS against the
+// instructor, so this lands before that does.
+function escapeHtml(text) {
+  return String(text)
+    .replace(/&/g, '&amp;')   // first, or it double-escapes the others
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+// Set up once. `markedReady` stays false if the CDN script is missing or too
+// old to accept the override — in which case we render plain text rather
+// than piping unsanitized HTML into innerHTML. Degrading to unformatted
+// output is a cosmetic loss; degrading to unsanitized output is not.
+let markedReady = false;
+try {
+  // Both `use` and `parse` are checked. Checking only `use` would let
+  // markedReady go true against a build that cannot render, and the call
+  // site invokes marked.parse unconditionally once it is true — which
+  // throws inside the SSE read loop and lands in the outer catch as
+  // "Network error. Please try again." over an answer that arrived
+  // intact. That is precisely the bug the previous commit fixed, so
+  // reintroducing it here would have been a neat own goal.
+  if (typeof marked !== 'undefined'
+      && typeof marked.use === 'function'
+      && typeof marked.parse === 'function') {
+    marked.use({
+      renderer: {
+        // Signature differs across marked majors — a string in v4 and
+        // earlier, a token object from v5. The CDN tag is unpinned (#25),
+        // so handle both rather than betting on which one loads.
+        html(token) {
+          return escapeHtml(typeof token === 'string' ? token : token.text);
+        },
+      },
+    });
+    markedReady = true;
+  }
+} catch (e) {
+  markedReady = false;
+}
+
 const form = document.getElementById('chat-form');
 const input = document.getElementById('message-input');
 const log = document.getElementById('chat-log');
@@ -67,7 +129,7 @@ form.addEventListener('submit', async (e) => {
             // Markdown formatting is a cosmetic degradation; losing the
             // answer to a misleading error is not.
             bubble.classList.remove('cursor');
-            if (typeof marked !== 'undefined' && marked.parse) {
+            if (markedReady) {
               bubble.innerHTML = marked.parse(fullText);
             } else {
               bubble.textContent = fullText;
