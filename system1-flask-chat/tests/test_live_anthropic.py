@@ -42,17 +42,29 @@ def composed():
     import auth
     import claude_handler
 
-    os.environ[f'{SKIN.upper()}_ACTIVE_MODULE'] = MODULE
-    context = auth.load_skin_context(SKIN)
-    persona = auth.load_skin_persona(SKIN)
-    notes = auth.load_skin_notes(SKIN)
-    return {
-        'blocks': claude_handler._system_blocks(context, persona, notes),
-        'context': context,
-        'persona': persona,
-        'notes': notes,
-        'model': auth.SKINS[SKIN]['model'],
-    }
+    # Restored on teardown. monkeypatch is function-scoped and this fixture
+    # is module-scoped, so the save/restore is manual — leaving the override
+    # set would make any later test that reads CSC134_ACTIVE_MODULE depend on
+    # whether this module ran first.
+    var = f'{SKIN.upper()}_ACTIVE_MODULE'
+    previous = os.environ.get(var)
+    os.environ[var] = MODULE
+    try:
+        context = auth.load_skin_context(SKIN)
+        persona = auth.load_skin_persona(SKIN)
+        notes = auth.load_skin_notes(SKIN)
+        yield {
+            'blocks': claude_handler._system_blocks(context, persona, notes),
+            'context': context,
+            'persona': persona,
+            'notes': notes,
+            'model': auth.SKINS[SKIN]['model'],
+        }
+    finally:
+        if previous is None:
+            os.environ.pop(var, None)
+        else:
+            os.environ[var] = previous
 
 
 def _call(composed, message):
@@ -99,7 +111,11 @@ def test_prompt_caching_actually_engages(composed):
 
     cache_read = getattr(second.usage, 'cache_read_input_tokens', 0) or 0
     assert cache_read > 0, (
-        f'Second identical prompt was not served from cache. usage={second.usage!r}'
+        'The second call did not read the cached prefix. Note the two calls '
+        'send *different* user messages on purpose — what is cached is the '
+        'system block (persona + notes + windowed corpus), not the turn. A '
+        'miss here means the prefix is not byte-stable between requests, not '
+        f'that the questions differed. usage={second.usage!r}'
     )
 
     # The point of ADR-0002 is that the corpus stops being fresh input on

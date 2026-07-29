@@ -35,7 +35,16 @@ function escapeHtml(text) {
 // output is a cosmetic loss; degrading to unsanitized output is not.
 let markedReady = false;
 try {
-  if (typeof marked !== 'undefined' && typeof marked.use === 'function') {
+  // Both `use` and `parse` are checked. Checking only `use` would let
+  // markedReady go true against a build that cannot render, and the call
+  // site invokes marked.parse unconditionally once it is true — which
+  // throws inside the SSE read loop and lands in the outer catch as
+  // "Network error. Please try again." over an answer that arrived
+  // intact. That is precisely the bug the previous commit fixed, so
+  // reintroducing it here would have been a neat own goal.
+  if (typeof marked !== 'undefined'
+      && typeof marked.use === 'function'
+      && typeof marked.parse === 'function') {
     marked.use({
       renderer: {
         // Signature differs across marked majors — a string in v4 and
