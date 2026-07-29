@@ -70,12 +70,21 @@ jobs:
   # like a gate would be one in appearance only, which is worse than not
   # having one. Read the transcript artifact.
   #
-  # Also note the bank's own observed_variance: m0-02 produced a code
-  # skeleton in 1 of 3 runs. A weekly single sample is a data point, not a
-  # trend. Rates need --runs N (#30).
+  # A weekly single sample is a data point, not a trend. Rates need --runs N
+  # (#30), and that matters more now: m0-02 was retired because five samples
+  # of an ill-posed item told us nothing about the model, so the next thing
+  # to get wrong is reading a series of single samples as a direction.
   # ---------------------------------------------------------------------
   eval-bank:
     runs-on: ubuntu-latest
+    # One job per bank, so a new bank runs the moment it is added and each
+    # gets its own artifact. Adding evals/csc134/m2.yaml means adding "m2"
+    # here — the offline suite already fails if a bank is malformed, but
+    # nothing would notice a bank that is simply never run.
+    strategy:
+      fail-fast: false
+      matrix:
+        module: [m0, m1]
     steps:
       - uses: actions/checkout@v4
 
@@ -87,7 +96,7 @@ jobs:
 
       - run: pip install -r system1-flask-chat/requirements.txt
 
-      - name: Run the csc134 m0 behaviour bank
+      - name: Run the csc134 ${{ matrix.module }} behaviour bank
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         # pipefail matters: `python … | tee` reports *tee's* exit status, so
@@ -102,13 +111,13 @@ jobs:
         run: |
           set -o pipefail
           python scripts/eval_persona.py \
-            --skin csc134 --module m0 --backend anthropic \
-            | tee eval-csc134-m0.txt
+            --skin csc134 --module ${{ matrix.module }} --backend anthropic \
+            | tee eval-csc134-${{ matrix.module }}.txt
 
       - name: Upload transcripts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: eval-csc134-m0-${{ github.run_number }}
-          path: eval-csc134-m0.txt
+          name: eval-csc134-${{ matrix.module }}-${{ github.run_number }}
+          path: eval-csc134-${{ matrix.module }}.txt
           retention-days: 90

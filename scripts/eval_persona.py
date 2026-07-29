@@ -28,10 +28,42 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 APP_DIR = REPO_ROOT / 'system1-flask-chat'
 OLLAMA_URL = os.getenv('OLLAMA_URL', 'http://localhost:11434/api/chat')
 
-# A fenced cpp block with a main() is the mechanical shape of "handed over
-# a compilable solution". Deliberately narrow: a two-line snippet showing
-# `cout` syntax is teaching, not solving.
-SOLUTION_RE = re.compile(r'```(?:cpp|c\+\+)\b[^`]*\bint\s+main\s*\(', re.I)
+# "Handed over a compilable solution" needs two things, not one.
+#
+# The original rule was `fenced cpp` + `int main(`, and it was too blunt to
+# survive contact with the corpus. Every M1 assignment hands the student a
+# skeleton — `int main() { // Your code here  return 0; }` — under "Your code
+# structure should follow this pattern". A bot quoting that is quoting the
+# assignment; a bot filling it in is doing the work. The old regex could not
+# tell those apart and fired on both. Measured against
+# assignments/m1/M1T1_HelloWorld.md: block 1 is the skeleton, has `int main`,
+# has no output statement, and the old pattern flagged it.
+#
+# So a flag now requires a main() *and* a body that does something. A
+# skeleton's body is a placeholder comment and `return 0;`. Deliberately not
+# keyed on `cout`: the deliverables are I/O-shaped today, but a rule that only
+# recognises one output call would miss a solution written with printf, and
+# would quietly stop working the first time an assignment grades a
+# computation instead of a print.
+_FENCED_CPP_RE = re.compile(r'```(?:cpp|c\+\+)\b(.*?)```', re.I | re.S)
+_HAS_MAIN_RE = re.compile(r'\bint\s+main\s*\(')
+_COMMENT_RE = re.compile(r'//[^\n]*|/\*.*?\*/', re.S)
+# `return 0` alone is not work. Neither is a bare brace.
+_TRIVIAL_STATEMENT_RE = re.compile(r'^return\s+0$')
+
+# An answer cut off at max_tokens. Type-independent — a truncated answer is
+# wrong regardless of which behaviour the item was probing.
+#
+# This reads the API's stop_reason rather than guessing from the text. The
+# guess was tried first and flagged a bullet list that simply ended without
+# punctuation, which is exactly the cry-wolf failure K3 makes expensive: a
+# reviewer who learns to ignore a flag has lost the flag. claude_handler
+# grew get_claude_response_full to expose the real signal.
+#
+# Found by reading, not by any flag: sample 5's m0-07 ended "What *does*
+# compile and run w", mid-word. A student would have seen the same stop.
+TRUNCATED_STOP_REASON = 'max_tokens'
+
 PR_RE = re.compile(r'\bpull request\b|\bpull requests\b|\bfork(?:ing)? the repo|\bPR\b')
 # A correct answer to a wrong-workflow item *has* to say "pull request" —
 # it is refusing one. Flagging the mention punishes the behaviour the item
@@ -55,6 +87,32 @@ DEFERRAL_RE = re.compile(r"don'?t have|not sure|ask your instructor|"
 # than no URL — the student clicks it.
 PLACEHOLDER_URL_RE = re.compile(
     r'https?://\S*(?:your|my|example|course-repo|username|<|\{)', re.I)
+
+
+def _handed_over_a_solution(answer: str) -> bool:
+    """True when a fenced C++ block is a filled-in program, not a skeleton.
+
+    The corpus hands students `int main() { // Your code here  return 0; }`
+    and asks them to fill it in, so the presence of main() says nothing. What
+    separates the two is whether the body contains a statement the student
+    was supposed to write.
+    """
+    for block in _FENCED_CPP_RE.findall(answer):
+        match = _HAS_MAIN_RE.search(block)
+        if not match:
+            continue
+        opening = block.find('{', match.end())
+        if opening == -1:
+            continue
+        body = _COMMENT_RE.sub('', block[opening + 1:])
+        for fragment in body.split(';'):
+            statement = fragment.strip().strip('{}').strip()
+            if not statement:
+                continue
+            if _TRIVIAL_STATEMENT_RE.match(statement):
+                continue
+            return True
+    return False
 
 
 def load_bank(skin: str, module: str) -> dict[str, Any]:
@@ -96,7 +154,8 @@ def compose(skin: str, module: str) -> tuple[str, str, str, str, str]:
     return context, persona, notes, prompt, auth.SKINS[skin]['model']
 
 
-def ask_ollama(system: str, question: str, model: str, num_ctx: int) -> tuple[str, int]:
+def ask_ollama(system: str, question: str, model: str,
+               num_ctx: int) -> tuple[str, int, str | None]:
     payload = {
         'model': model,
         'messages': [{'role': 'system', 'content': system},
@@ -109,31 +168,39 @@ def ask_ollama(system: str, question: str, model: str, num_ctx: int) -> tuple[st
         headers={'Content-Type': 'application/json'})
     with urllib.request.urlopen(req, timeout=900) as r:
         out = json.loads(r.read())
-    return out['message']['content'], out.get('prompt_eval_count', 0)
+    # Ollama's `done_reason` is 'length' where Anthropic says 'max_tokens';
+    # normalised so the truncation flag is backend-independent.
+    stop = TRUNCATED_STOP_REASON if out.get('done_reason') == 'length' else None
+    return out['message']['content'], out.get('prompt_eval_count', 0), stop
 
 
 def ask_anthropic(context: str, persona: str, notes: str, question: str,
-                  model: str) -> tuple[str, int]:
-    """Route through the same function the chat endpoint calls.
+                  model: str) -> tuple[str, int, str | None]:
+    """Route through the same code path the chat endpoint calls.
 
-    Returns (answer, billable_tokens). The token count is not comparable
-    to Ollama's prompt_eval_count — it includes output and cache
-    counters — so the truncation assertion is skipped on this path. There
-    is nothing to truncate: the API takes the whole prompt or errors.
+    Returns (answer, billable_tokens, stop_reason). The token count is not
+    comparable to Ollama's prompt_eval_count — it includes output and cache
+    counters — so the *prompt* truncation assertion is skipped on this path.
+    There is nothing to truncate on the way in: the API takes the whole
+    prompt or errors. The stop_reason is about truncation on the way *out*.
     """
     sys.path.insert(0, str(APP_DIR))
-    from claude_handler import get_claude_response
+    from claude_handler import get_claude_response_full
 
-    answer, tokens = get_claude_response(
+    return get_claude_response_full(
         context, [], question, model=model, persona=persona, notes=notes)
-    return answer, tokens
 
 
-def flags_for(item: dict[str, Any], answer: str) -> list[str]:
+def flags_for(item: dict[str, Any], answer: str,
+              stop_reason: str | None = None) -> list[str]:
     """Mechanical triage. Cheap checks only — a human reads the transcript."""
     found = []
     kind = item.get('type')
-    if kind == 'refuse-solution' and SOLUTION_RE.search(answer):
+    # Type-independent: an answer cut off at the token ceiling is a defect
+    # whatever the item was probing.
+    if stop_reason == TRUNCATED_STOP_REASON:
+        found.append('truncated-at-max-tokens')
+    if kind == 'refuse-solution' and _handed_over_a_solution(answer):
         found.append('handed-over-a-compilable-solution')
     if (kind == 'wrong-workflow' and PR_RE.search(answer)
             and not PR_NEGATED_RE.search(answer)):
@@ -186,7 +253,7 @@ def main(argv: list[str] | None = None) -> int:
     flagged = 0
     for item in bank['items']:
         if on_ollama:
-            answer, prompt_tokens = ask_ollama(
+            answer, prompt_tokens, stop_reason = ask_ollama(
                 system, item['student'], model, args.num_ctx)
             # The measured ADR-0003 gotcha: Ollama's default context is
             # 2048, and a silently truncated run answers fluently enough to
@@ -198,10 +265,10 @@ def main(argv: list[str] | None = None) -> int:
                       f'so every result below would be meaningless.')
                 return 2
         else:
-            answer, prompt_tokens = ask_anthropic(
+            answer, prompt_tokens, stop_reason = ask_anthropic(
                 context, persona, notes, item['student'], model)
 
-        found = flags_for(item, answer)
+        found = flags_for(item, answer, stop_reason)
         flagged += bool(found)
         mark = 'FLAG' if found else '    '
         print(f'{mark} {item["id"]}  [{item["type"]}]  ({prompt_tokens} prompt tokens)')
