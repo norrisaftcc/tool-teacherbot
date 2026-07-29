@@ -89,11 +89,15 @@ class Group(db.Model):
     def raise_budget_floor(self) -> bool:
         """Lift a stale budget up to the current default. Returns True if changed.
 
-        A column default only applies on INSERT, and there is no migrations
-        framework (`db.create_all()` creates missing tables and nothing
-        else), so the Group rows already in production keep the 100_000 that
-        was written when they were created. Raising the default alone would
-        fix new cohorts and leave the live ones at ~4 messages.
+        A column default only applies on INSERT, so the Group rows already in
+        production keep the 100_000 that was written when they were created.
+        Raising the default alone would fix new cohorts and leave the live
+        ones at ~4 messages.
+
+        This was originally justified by there being no migrations framework.
+        ADR-0006 falsified that — a data migration could do this now. The
+        method stays because it is already written and already tested, not
+        because the alternative is unavailable.
 
         Raise-only, never lower: this must not quietly undo a deliberate cap.
         Nothing can have set one yet — there is no UI or route to edit a

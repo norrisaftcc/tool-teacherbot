@@ -234,9 +234,22 @@ def test_every_csc134_module_window_clears_the_haiku_cache_floor():
     that nothing else would catch.
 
     Estimated at bytes/4; spot-checked against a real tokenizer at
-    0.97-1.04x, so the estimate is sound to a few percent. The thinnest
-    windows (m3, m5-m7) clear the floor by only 163-728 tokens, which is
-    exactly why this guard exists.
+    0.97-1.04x, so the estimate is sound to a few percent. Re-measured
+    2026-07-29: the thinnest windows clear the floor by 610 (m3), 949 (m5),
+    1011 (m7) and 1162 (m6) tokens. The docstring previously said "163-728",
+    which was stale by a corpus sync.
+
+    Note what this composes: `build_system_prompt(context, persona)` with
+    `notes=None`, while production `_system_blocks` also passes the teaching
+    notes — about 745 tokens more. So the guard measures a *smaller* prompt
+    than the app sends, which is conservative in direction (it trips before
+    production would) but means it is structurally blind to `_system_blocks`.
+
+    It also does not guard the other property ADR-0002's cost model rests on:
+    that the cached block is byte-identical across every seat in a cohort. A
+    per-seat byte in block 0 gives every seat its own cache entry, and because
+    `_usage_total` counts cache reads at full weight (K10), nothing in the app
+    would report it — only the invoice moves. See ADR-0004 §6.
     """
     import os
     import auth

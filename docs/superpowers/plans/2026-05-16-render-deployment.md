@@ -1,5 +1,19 @@
 # Render Deployment Implementation Plan — Revision 2
 
+> **SUPERSEDED — do not act on this document.**
+>
+> A May 2026 plan for a stack that no longer exists. It provisions free-tier
+> Render resources under names (`teacherbot-db`) that were replaced by the Pro
+> Blueprint in `render.yaml`, and the database it describes has since been
+> deleted. It also predates Alembic (ADR-0006), so any schema reasoning in it is
+> wrong.
+>
+> It is kept for the reasoning, not the steps. Current operator truth is
+> `system1-flask-chat/DEPLOY.md`; current decisions are `docs/registry/KEEP.md`.
+>
+> This banner exists because the file opens by instructing an agent to execute
+> it task-by-task, which is the one kind of stale document that can do damage.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Deploy `system1-flask-chat/` to Render as a Python web service named `teacherbot` backed by a managed Postgres DB `teacherbot-db`. Delete the old misconfigured `tool-teacherbot` service before creating the new one. Land a PR with deploy config + operator docs first; then drive the actual provisioning via Render CLI plus targeted REST calls.

@@ -25,11 +25,12 @@ directory does not exist — see `docs/historical/`.
 | `scripts/export_group_transcripts.py` | Exports a cohort's transcripts before its skin is unregistered (K12). |
 | `evals/csc134/m0.yaml` | The only behaviour bank so far. |
 | `docs/historical/` | Superseded planning docs. Bannered, do not act on them. |
+| `docs/superpowers/` | Also superseded, also bannered. Kept separate because these are May 2026 *executable* plans — they open by telling an agent to work through them task-by-task, and they provision a free-tier stack that no longer exists. Do not act on them either. |
 
 ## Live service
 
 - **Push to `main` auto-deploys** (~1 min to live), `rootDir: system1-flask-chat`
-- Service `srv-d84ha1og4nts73f73rng` · DB `dpg-d84h9epkh4rs73d70pgg-a` · virginia · free plan
+- **What is actually deployed is currently unknown to this repo.** `srv-d84ha1og4nts73f73rng` / `dpg-d84h9epkh4rs73d70pgg-a` are the *old free-tier* IDs and the database is **gone**, not stale — `DEPLOY.md` records `failed to resolve host`, which is name resolution. The Pro stack in `render.yaml` has never been applied: its three `plan:` values are still the deliberately-invalid placeholders. Establish the real state and record it in `DEPLOY.md` before doing anything that assumes production exists.
 - Render CLI workspace: `render workspace set tea-d81rjp0sfn5c738tl430` (once per shell)
 
 ## Commands
@@ -58,8 +59,10 @@ cd system1-flask-chat && flask db migrate -m "what changed and why"
 Then **read the generated file** — autogenerate misses server defaults, sees a
 rename as drop+add, and skips CHECK constraints. `tests/test_migrations.py` fails
 CI when models and migrations disagree, which is what replaced the old blanket
-prohibition (K6, superseded). Rehearse on `teacherbot-db-staging` before merging:
-the suite runs on SQLite, which accepts things Postgres rejects.
+prohibition (K6, superseded). Rehearse on `teacherbot-pro-db-staging` before
+merging: the suite runs on SQLite, which accepts things Postgres rejects. An
+empty staging database only proves the DDL parses — seed it with representative
+rows first, or the rehearsal returns green and is evidence of nothing.
 
 ### Repo
 
@@ -70,10 +73,11 @@ the suite runs on SQLite, which accepts things Postgres rejects.
 ### Prompt composition
 
 - **The corpus is windowed** (ADR-0002): `corpus_index` + one `active_module`. Never load the whole corpus; that is what the window exists to prevent.
-- **Haiku will not cache a prefix under 4096 tokens** — silently, no error. `test_auth.py` guards every csc134 window against that floor, and the thinnest clear it by 163 tokens. Any corpus trimming will trip it, and that is the test doing its job.
-- **`_usage_total` counts cache reads at full weight.** Correct as a token count, wrong as a cost proxy. Don't "fix" it into a cost estimate without deciding K10 first.
+- **Haiku will not cache a prefix under 4096 tokens** — silently, no error. `test_auth.py` guards every csc134 window against that floor, and the thinnest (m3) clears it by **610** tokens. Any corpus trimming will trip it, and that is the test doing its job. Note the guard composes *without* teaching notes while production sends them, so it measures ~745 tokens less than the real prefix — conservative in direction, but it means the guard is blind to `_system_blocks`, which is where the cached block is actually built.
+- **The cached prefix must stay byte-stable across every seat in a cohort.** That is what makes one cache entry serve the whole class; a per-seat byte in the cached block gives every seat its own entry, and 1h writes bill at ~2x against reads at ~0.1x. **Nothing guards this** — and `_usage_total` counts cache reads at full weight, so a cache miss and a cache hit report the identical number. Only the invoice moves.
+- **`_usage_total` counts cache reads at full weight.** Correct as a token count, wrong as a cost proxy, and **frozen that way** (K10) rather than pending.
 - **Context is reloaded per request, never cached in the session** — a window is tens of KB and the signed cookie limit is 4KB. `test_skins.py` guards this.
-- **The SSE generator body runs after the request context is torn down.** Read anything you need from the app or DB *before* `generate()`.
+- **Hoist what the SSE generator needs before `generate()`** — but not for the reason the code used to give. `routes.py` wraps the generator in `stream_with_context`, so the request context *is* alive inside it: `session`, `request` and the DB all work. The real constraint is that returning `Response()` commits the status line, so nothing inside `generate()` can emit a 403 or 409, and `session` mutations never reach a cookie. Do budget and auth checks *before* the response, or a rejection becomes an SSE error event instead of a status code.
 
 ### Render
 
