@@ -8,22 +8,76 @@ procedure documented in `docs/superpowers/plans/2026-05-16-render-deployment.md`
 
 | Property | Value |
 |---|---|
-| Service name | `teacherbot` |
-| Database name | `teacherbot-db` (+ `teacherbot-db-staging` for migration rehearsal) |
+| Service name | `teacherbot-pro` |
+| Database name | `teacherbot-pro-db` (+ `teacherbot-pro-db-staging` for migration rehearsal) |
 | Region | Virginia (us-east) |
 | Plan | Pro (web + DB) |
 | Branch deployed | `main` |
 | Root directory | `system1-flask-chat` |
 | Auto-deploy | enabled (every push to `main`) |
 | Pre-deploy | `flask db upgrade` — migrations run before traffic shifts |
-| Service URL | recorded in tracking issue at first deploy |
+| Health check | `/healthz` — runs `SELECT 1`, 503s if Postgres is unreachable |
+| Service URL | recorded in the tracking issue at first deploy |
 
-> **Rebuilt on Pro tier, 2026-07-29.** The original free-tier stack
-> (`srv-d84ha1og4nts73f73rng`) was written off rather than migrated. Free
-> Postgres carries a 30-day rolling expiry and that instance was ~73 days old,
-> so it had most likely already lapsed. Starting from an empty database is also
-> what let Alembic adopt the schema without a hand-run `flask db stamp head`
-> against production — see ADR-0006.
+> **Rebuilt on Pro tier, 2026-07-29, rather than migrated.**
+>
+> The legacy free-tier database was gone before we decided anything: the
+> 2026-07-29 logs show `failed to resolve host 'dpg-d84h9epkh4rs73d70pgg-a'`
+> — *name resolution*, meaning the instance no longer existed. It was ~73
+> days old against a 30-day rolling expiry.
+>
+> Starting from an empty database is also what let Alembic adopt the schema
+> with no hand-run `flask db stamp head` against production (ADR-0006), which
+> was the riskiest step in the original plan.
+>
+> The legacy service `srv-d84ha1og4nts73f73rng` is kept **suspended** as a
+> control until the new stack is verified, which is why the new names carry a
+> `-pro` suffix. Once it is deleted, renaming back to `teacherbot` is a
+> one-line `render.yaml` change and a re-apply — but the URL changes with the
+> name, so do that *before* handing an address to a cohort.
+
+## First bootstrap (Blueprint)
+
+The dashboard's Blueprint flow needs a payment method on file; Pro satisfies
+that. One apply creates the web service, the database, and staging.
+
+**1. Fill in the three `plan:` placeholders in `render.yaml`.** They are
+deliberately invalid, so an unedited apply fails rather than silently
+provisioning free tier and re-inheriting the expiry that deleted the last
+database.
+
+**2. Apply the Blueprint** — Render dashboard → New → Blueprint → this repo.
+
+**3. Set the three `sync: false` secrets** on the service, or the deploy will
+refuse to start (`create_app` raises, by design):
+`ANTHROPIC_API_KEY`, `FLASK_SECRET_KEY`, `ADMIN_PASSWORD`.
+`FLASK_APP` and `DATABASE_URL` come from the Blueprint.
+
+**4. Verify, in this order** — each step catches a different failure:
+
+```bash
+# a. Migrations ran. On an empty database this is the first `flask db
+#    upgrade`; no `stamp head` is needed, which is the point of rebuilding.
+render logs --resources <srv-id> | grep -i alembic
+#    expect: "Running upgrade  -> 69d2bbe0a8f9, baseline: ..."
+
+# b. The database is actually reachable — NOT `/`, which renders the picker
+#    from memory and returns 200 over a dead database (#38).
+curl -sS -w '\n%{http_code}\n' https://<service>.onrender.com/healthz
+#    expect: {"status":"ok","database":"ok"} and 200
+
+# c. The path that touches Postgres without exception handling.
+curl -sS -o /dev/null -w '%{http_code}\n' \
+  -X POST -d 'password=<csc134 passcode>' \
+  https://<service>.onrender.com/csc134/login
+#    expect: 302 to /csc134/chat. A 500 means the schema is wrong.
+```
+
+**5. Record the service URL and IDs** in the tracking issue, and update the
+table above.
+
+If a name collides on apply, the legacy `teacherbot` service still exists —
+suspend or rename it, or adjust the names in `render.yaml`.
 
 ## Required environment variables
 
