@@ -5,7 +5,16 @@ from anthropic import Anthropic
 client = Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
 
 MODEL = 'claude-sonnet-4-6'
-MAX_TOKENS = 1024
+# 1024 truncated a real answer mid-word: eval sample 5's m0-07 ended "What
+# *does* compile and run w". That item runs long because it correctly shows a
+# broken snippet and then explains why the compiler blames the *next* line —
+# which is the kind of answer this bot exists to give.
+#
+# Output is small next to the ~7.2k cached prefix every message already
+# carries, and the cohort budget is 25M, so the cost of the extra headroom is
+# noise. `truncated-at-max-tokens` in the eval harness now catches a recurrence
+# instead of leaving it to whoever reads the transcript.
+MAX_TOKENS = 2048
 
 # Fallback persona for callers that don't pass one. Routes always pass a
 # per-skin persona from context/<slug>_persona.md (ADR-0002); this is a
@@ -105,6 +114,34 @@ def get_claude_response(
     Returns:
         (response_text, total_tokens_used)
     """
+    text, tokens, _ = get_claude_response_full(
+        group_context, history, user_message,
+        model=model, persona=persona, notes=notes,
+    )
+    return text, tokens
+
+
+def get_claude_response_full(
+    group_context: str,
+    history: list[dict],
+    user_message: str,
+    model: str | None = None,
+    persona: str | None = None,
+    notes: str | None = None,
+) -> tuple[str, int, str | None]:
+    """As get_claude_response, plus the API's ``stop_reason``.
+
+    Split out rather than widening get_claude_response, whose two-value
+    shape the routes and their tests depend on. The eval harness wants the
+    stop reason so it can flag an answer cut off at max_tokens — a defect
+    that is invisible to every other check, and was found by reading a
+    transcript rather than by any flag (sample 5's m0-07 ended mid-word).
+
+    The alternative was guessing truncation from the text, which flagged a
+    bullet list that simply ended without punctuation. An exact signal
+    exists; approximating it would have been a flag that cries wolf, and K3
+    is the rule that makes that expensive.
+    """
     messages = history + [{'role': 'user', 'content': user_message}]
 
     try:
@@ -118,7 +155,7 @@ def get_claude_response(
         raise RuntimeError(f'Claude API error: {e}') from e
 
     text = response.content[0].text
-    return text, _usage_total(response.usage)
+    return text, _usage_total(response.usage), getattr(response, 'stop_reason', None)
 
 
 def stream_claude_response(
