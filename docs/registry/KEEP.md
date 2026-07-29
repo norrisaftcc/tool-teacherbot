@@ -105,6 +105,70 @@ refuses to start.
 *Evidence:* `system1-flask-chat/app.py` (`_require_secrets`);
 `system1-flask-chat/tests/test_app.py`.
 
+### K8 — A frozen artifact survives a session boundary; an open negotiation does not
+
+Frozen 2026-07-29 by the course lead, having been the live surface since
+2026-07-28. Decides `Exchange.frozen_at`.
+
+The memory is asymmetric. `frozen_at NOT NULL` is replayed **byte-exact** into
+the system prompt — it is a contract, and quoting a contract claims no new
+authority. `frozen_at IS NULL` is shown to the student as history and is **never**
+re-entered as an operative floor.
+
+The asymmetry is the safety property, not an optimisation. Open negotiation
+state is the machine's inference about what the human *seems* to want, and
+replaying it across a boundary re-asserts inferences nobody ratified — against a
+student whose recollection has decayed over a week while the database's has not.
+That is manufactured consent. This repo already names the shape one layer down:
+`m0-04`, failure mode `invented-a-date` — *"The worst outcome in the bank. A
+confident wrong date is acted on."* A confidently restated unfrozen floor is an
+invented date about the student's own intent.
+
+Rejected: **replay everything** — simpler, and what "add memory" usually means;
+produces a turn log rather than a record of freeze events. **Replay nothing** —
+safe and close to what already exists, so it does not deliver the stated want.
+
+*Evidence:* ADR-0004 §3, §4 (Accepted). Tracked in #20.
+
+### K9 — Identity is a declared GitHub handle, and it is unverified
+
+Frozen 2026-07-29. Login keeps the shared cohort passcode and adds one field: the
+student's GitHub username. That handle keys their memory and their transcripts.
+
+**Unverified, and this says so rather than implying otherwise** — a student can
+type a peer's handle. Adequate for the capstone for two reasons that will not
+hold forever: the instructor holds corroborating commit authorship from
+Codespaces, which is what makes a self-declared handle usable for a graded
+artifact; and a capstone cohort is small enough that impersonation is a social
+problem. GitHub OAuth is the upgrade, and it is an upgrade rather than a rewrite
+because it fills the same column.
+
+Rejected: **OAuth now** — right eventually, but it blocks the schema behind an
+integration the capstone does not have time for. **Opaque seat tokens** —
+anonymous, die with the cookie, produce nothing gradeable.
+
+*Evidence:* ADR-0004 §1 (Accepted). Tracked in #20.
+
+### K10 — The budget belongs to the seat and is denominated in tokens as counted today
+
+Frozen 2026-07-29. Both halves, where previously only the owner had a position.
+
+**Owner: the seat.** Per-cohort pooling means one verbose student can exhaust the
+class, which is a defect today and worse once replay raises per-message spend
+against the same pool.
+
+**Denomination: tokens, as `_usage_total` already counts them** — cache reads at
+full weight. This is a correct token count and a poor cost proxy, and it is now
+*deliberately* that rather than pending a decision. Weighting the counters toward
+real billing (cache reads ~0.1, 1h writes ~2) was the alternative and was
+declined: it trades an honest count for an estimate resting on hardcoded pricing
+ratios that would go stale silently. If a cost figure is ever needed, it is a
+reporting concern, not the budget's unit.
+
+*Evidence:* ADR-0004 §2 and §"Consequences" (Accepted);
+`system1-flask-chat/claude_handler.py:63-75` — the comment there is a
+description, not an open question. Tracked in #20.
+
 ### K14 — Alembic owns the production schema; `create_all` is for tests only
 
 They must never both run against a real database. `create_all()` writes no
@@ -181,35 +245,9 @@ item `m1-03`, which fails if the bot *withholds* the skeleton.
 
 ## Negotiating
 
-### K8 — What survives a session boundary
-
-Position taken in ADR-0004 §3: a frozen artifact survives, an open negotiation
-does not. Decides the `Exchange.frozen_at` column, so it cannot be deferred past
-the schema.
-
-*Status:* ADR-0004, Proposed. Tracked in #20.
-
-### K9 — Student identity under a shared cohort passcode
-
-Position taken in ADR-0004 §1: cohort passcode plus a declared GitHub handle,
-explicitly unverified, adequate only because the instructor holds corroborating
-commit authorship and a capstone cohort is small.
-
-*Status:* ADR-0004, Proposed. Tracked in #20.
-
-### K10 — The budget's unit, owner, and denomination
-
-Three open questions in one. The **owner** should move from cohort to seat
-(ADR-0004 §2) so one verbose student cannot lock out the class. The
-**denomination** is undecided: `_usage_total` counts cache reads at full weight,
-which is a correct token count and a poor cost proxy — cache reads bill at
-roughly a tenth of list, 1h cache writes at roughly double. Picking one needs a
-measurement, not an inherited constant.
-
-*Evidence:* `system1-flask-chat/claude_handler.py:54-66`;
-`system1-flask-chat/models.py` (`DEFAULT_TOKEN_BUDGET`, `raise_budget_floor`).
-*Status:* partially addressed — the number was resized as a stopgap; the unit is
-still wrong. Tracked in #20.
+> **K8, K9 and K10 moved to Frozen on 2026-07-29**, answered by the course lead
+> and recorded in ADR-0004, which moved to Accepted in the same change. They were
+> the last three questions blocking the memory schema.
 
 ### K11 — What the repointed csc114 slot becomes
 

@@ -1,8 +1,21 @@
 # ADR-0004: Seat identity, server-side memory, and the session boundary
 
-- **Status:** Proposed
-- **Date:** 2026-07-28
+- **Status:** Accepted (2026-07-29). Proposed 2026-07-28.
 - **Deciders:** norrisaftcc (product), Claude Code (implementation)
+
+**Amended before acceptance.** ADR-0006 landed Alembic the day after this was
+written, which falsified the constraint §"The constraint that forces this
+decision now" was built on. The three open questions (K8, K9, K10) were then put
+to the course lead and answered; §2 changed as a result. The amendments are
+marked inline rather than folded in silently, because the reasoning that was
+wrong is the useful part of the record.
+
+| Question | Frozen answer |
+|---|---|
+| Schema shape | New tables **and drop the legacy two** — see §2 |
+| K9 · identity | Declared GitHub handle, explicitly unverified — §1, unchanged |
+| K10 · budget | Per-seat, denominated in tokens as counted today — §2, §"Consequences" |
+| K8 · session boundary | Asymmetric: frozen replays, open does not — §3, unchanged |
 
 ## Context
 
@@ -65,7 +78,21 @@ can be edited by the person being graded is not an assessment artifact. So
 identity is a precondition for memory, and memory is a precondition for the
 gradebook.
 
-### The constraint that forces this decision now
+### The constraint that forced this decision — since lifted
+
+> **Superseded by ADR-0006 (2026-07-29), one day after this was written.**
+> Alembic and Flask-Migrate landed, `create_all()` is gated on `TESTING`, and
+> `tests/test_migrations.py` fails CI when models and migrations disagree. The
+> argument below is no longer true and the design no longer rests on it.
+>
+> It is kept in full, and this ADR was not frozen until it was reread, because
+> the difference matters: "new tables only" was a **forced move** when written
+> and is a **choice** now. An unexamined constraint that outlives its cause is
+> how a workaround becomes an architecture. On rereading, the shape survived on
+> its own merits — `Turn` needs a `seq` that `Message` lacks, `Exchange` needs
+> `frozen_at`, and neither is an ALTER anybody wants — but the *rejection* at
+> "Alternatives Considered" no longer stands on impossibility, only on
+> preference, and §2 changed as a direct result.
 
 `app.py` runs `db.create_all()` on startup and there is no migrations framework
 — no Alembic, no Flask-Migrate in `requirements.txt`. `create_all()` creates
@@ -111,7 +138,12 @@ produce nothing gradeable. **Per-student passcodes** — real attribution, but N
 credentials to administer per cohort, and passcodes currently live in a public
 repo.
 
-### 2. Three new tables, and no change to any existing one
+### 2. Three new tables, and the legacy two are dropped
+
+> **Amended 2026-07-29.** Originally *"and no change to any existing one"* — a
+> title that described the migration-less constraint above, not a preference.
+> With Alembic in place the course lead ruled: add the three, and **drop
+> `conversations` and `messages`** rather than leaving them as a dead log.
 
 ```
 Seat      id, group_id FK, handle, created_at, last_seen_at,
@@ -126,23 +158,41 @@ Turn      id, exchange_id FK, seq, role, content, tokens_used, created_at
           UNIQUE (exchange_id, seq)
 ```
 
-All three are new, so `create_all()` builds them on deploy with no migration.
-`Group`, `Conversation` and `Message` are untouched and become the legacy log.
+Alembic now applies all of this, so the shape is argued on merit rather than on
+what `create_all()` can reach. `Turn` needs a `seq` that `Message` does not have
+and an ordering guarantee it cannot give; `Exchange` needs `frozen_at`, which is
+the entire point of §4. Retrofitting both onto `Conversation`/`Message` reaches
+the same schema through several ALTERs against live Postgres, each owing a K15
+staging rehearsal. Adding the tables is the smaller real diff even though it is
+the larger apparent one.
 
-Adding `student_id` to `Conversation` instead would be an ALTER on a live table
-with no migrations framework — the exact production landmine described above.
-Reusing `Message` fails for the same reason: it needs `seq`.
+**The budget moves to `Seat`,** denominated in **tokens as `_usage_total`
+already counts them** — cache reads at full weight. That is a correct token
+count and a poor cost proxy, and K10 now freezes it as *deliberately* a token
+count rather than leaving the denomination open. The alternative was weighting
+cache reads to ~0.1 and 1h writes to ~2, which buys a better spend estimate at
+the price of hardcoded pricing ratios that go stale silently. Moving the budget
+off `Group` also fixes a defect that exists today independently of memory: the
+pool is per-cohort, so one verbose student can exhaust the class — and replay
+raises per-message spend against that same shared pool.
 
-**The budget moves to `Seat`.** This fixes a defect that exists today
-independently of memory: the pool is per-cohort, so one verbose student can
-exhaust the class. It comes free with the new table, and it matters more once
-memory is replayed, because replay raises per-message spend against that same
-shared pool.
+**The legacy tables are dropped, not retained.** `conversations` and `messages`
+hold demo traffic plus the finished CSC 114 pilot, which K12 already wrote off as
+moot. This is the **first Alembic migration against production data and the first
+destructive one**, so K15 binds hard: rehearse on `teacherbot-db-staging` first.
+`tests/test_migrations.py` runs on SQLite and will not tell you what Postgres
+does with a DROP against live rows and live foreign keys.
 
-**The legacy rows.** `conversations` and `messages` currently hold demo traffic
-plus the finished CSC 114 pilot. Default is *retain, unused*. Dropping them is
-cheap and they have no obvious retention value, but that is the course lead's
-call, not this record's — see K10.
+Everything reading those tables moves in the same change or breaks. Verified
+against the code, not assumed:
+
+| Reader | Fate |
+|---|---|
+| `scripts/export_group_transcripts.py:57-66` | **The one that dies quietly.** K12 keeps this script for the next retired cohort and it reads *only* the legacy tables. Repoint it at `Seat`/`Exchange`/`Turn` or K12 becomes false. |
+| `routes.py:210-220`, `:278-288` | Both chat write paths. They stop writing `Conversation`/`Message` and start writing `Turn`. |
+| `routes.py:310-326` | The admin view (#29), which already queries conversations and drops them unrendered. |
+| `models.py:80` | `Group.conversations` relationship. |
+| `templates/chat.html:44` | Student-facing copy: *"Conversations logged for instructor review."* |
 
 ### 3. A frozen artifact survives a session boundary. An open negotiation does not.
 
@@ -200,20 +250,30 @@ per-cohort budget defect is fixed by the same table that fixes identity.
 
 **Harder.** Every chat request grows a database read on the hot path. The
 budget's meaning changes, so the admin view needs rework to show seats rather
-than one cohort row. Two dead tables sit in the schema until someone rules on
-K10.
+than one cohort row. `export_group_transcripts.py` has to be repointed in the
+same change or it breaks silently — it is not covered by any test, because it is
+a one-shot operator script.
+
+**Irreversible.** Dropping `conversations` and `messages` destroys the demo
+traffic and the CSC 114 pilot rows. K12 already ruled those written off, so this
+executes a decision rather than making a new one — but it executes it, and a
+DROP has no rollback. `preDeployCommand: flask db upgrade` means a failed
+migration blocks the deploy and leaves the old version serving; a *succeeded*
+migration that dropped the wrong thing does not.
 
 **Neutral, and load-bearing.** Nothing here catches a Postgres/SQLite
-divergence, because the suite runs on in-memory SQLite. This design avoids
-migrations by only ever adding tables — but that only works once. Alembic must
-land before the capstone produces transcripts anyone intends to grade, because
-the second schema change will not have this escape hatch.
+divergence, because the suite runs on in-memory SQLite. That was survivable when
+this ADR only ever added tables. It is not survivable now that it drops them,
+which is why K15's staging rehearsal is a precondition rather than good practice.
 
-**Deliberately not decided here.** Whether the budget is denominated in tokens
-or dollars. `_usage_total` counts cache reads at full weight, which is a correct
-token count and a poor cost proxy — cache reads bill at roughly a tenth of list,
-1h writes at roughly double. Picking a denomination needs a real measurement,
-not an inherited constant. See K8.
+**Now decided, having been open.** The budget's denomination: **tokens, as
+`_usage_total` already counts them.** Cache reads at full weight, which is a
+correct token count and a poor cost proxy — cache reads bill at roughly a tenth
+of list, 1h writes at roughly double. Weighting them was the alternative and was
+declined: it trades an honest count for an estimate that depends on hardcoded
+pricing ratios nothing would notice going stale. The comment at
+`claude_handler.py:63-75` should stop reading as an open question. See **K10**
+(this previously said K8, which is the session-boundary entry).
 
 ### Tests this will break, when implemented
 
@@ -252,6 +312,14 @@ Simpler, and it is what "add memory" usually means. Rejected for the reason in
 §3: it manufactures consent across a session boundary, and it produces a turn
 log rather than a record of freeze events.
 
-**Add columns to `Conversation` and `Message`.** The smaller diff. Rejected
-because `create_all()` cannot apply it to a live database, and the failure mode
-is a production `UndefinedColumn` that no test can catch.
+**Add columns to `Conversation` and `Message`.** The smaller diff.
+
+> **Amended 2026-07-29.** Originally rejected as *impossible*: `create_all()`
+> cannot apply it to a live database, and the failure mode is a production
+> `UndefinedColumn` no test can catch. ADR-0006 removed that objection entirely,
+> so this was reconsidered on merit and rejected again for weaker but sufficient
+> reasons — `Message` has no `seq` and no ordering guarantee, `Conversation` has
+> no `frozen_at`, and reaching the target shape takes several ALTERs against
+> live Postgres where three CREATEs would do. Recorded as a preference now, not
+> an impossibility, so that a future reader does not inherit a certainty this
+> record no longer has.
