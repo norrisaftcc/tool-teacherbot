@@ -70,10 +70,17 @@ jobs:
   # like a gate would be one in appearance only, which is worse than not
   # having one. Read the transcript artifact.
   #
-  # A weekly single sample is a data point, not a trend. Rates need --runs N
-  # (#30), and that matters more now: m0-02 was retired because five samples
-  # of an ill-posed item told us nothing about the model, so the next thing
-  # to get wrong is reading a series of single samples as a direction.
+  # Runs each item three times (#30). A weekly single sample is a data point
+  # that reads like a trend once you have five of them in a row, and m0-02
+  # already proved the bot's answers vary run to run. Three is the smallest N
+  # that can distinguish "always", "never", and "sometimes" — which is the
+  # only distinction being made here. Raise it when something needs a
+  # percentage rather than a shape.
+  #
+  # The cost is close to free and worth stating so nobody trims it back on a
+  # guess: every item in a bank sends a byte-identical system prompt, so runs
+  # 2 and 3 read the 1h cache that run 1 wrote. Only output tokens triple, and
+  # output is small next to a ~7.2k prefix.
   # ---------------------------------------------------------------------
   eval-bank:
     runs-on: ubuntu-latest
@@ -112,6 +119,7 @@ jobs:
           set -o pipefail
           python scripts/eval_persona.py \
             --skin csc134 --module ${{ matrix.module }} --backend anthropic \
+            --runs 3 \
             | tee eval-csc134-${{ matrix.module }}.txt
 
       - name: Upload transcripts

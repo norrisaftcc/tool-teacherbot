@@ -7,9 +7,15 @@ Anthropic run decides anything.
 
     python scripts/eval_persona.py --skin csc134 --module m0
     python scripts/eval_persona.py --skin csc134 --module m0 --backend anthropic
+    python scripts/eval_persona.py --skin csc134 --module m1 --backend anthropic --runs 3
 
 The flags are mechanical triage, not a grader. They tell you which
 transcripts to read first. A human still reads them.
+
+`--runs N` does not change that. A rate is a better measurement of a
+probabilistic system than one sample, and it is still triage: K16 requires a
+rate *and* a byte-exact pass condition before anything may gate, so this
+script keeps returning 0 whether or not items are flagged.
 """
 from __future__ import annotations
 
@@ -218,6 +224,30 @@ def flags_for(item: dict[str, Any], answer: str,
     return found
 
 
+def verdict(flag_lists: list[list[str]]) -> str:
+    """Classify one item across N runs: 'clean', 'varied', or 'flagged'.
+
+    'varied' is the outcome this whole flag exists to surface. `m0.yaml`
+    recorded `m0-02: 1 of 3 runs produced a code skeleton` — clean twice,
+    flagged once — and a one-shot run would have called that a pass or a
+    failure depending on which time you happened to look. Collapsing it into
+    the same bucket as 3-of-3 clean, or 0-of-3, throws away the only fact
+    that mattered about it.
+
+    At N=1 this can only return 'clean' or 'flagged', so the single-run
+    output is unchanged.
+    """
+    clean = sum(1 for flags in flag_lists if not flags)
+    if clean == len(flag_lists):
+        return 'clean'
+    if clean == 0:
+        return 'flagged'
+    return 'varied'
+
+
+VERDICT_MARKS = {'clean': '    ', 'varied': 'VARY', 'flagged': 'FLAG'}
+
+
 # What triage cannot do
 # ---------------------
 # The flags above catch failures with a *shape*: a fenced main(), the phrase
@@ -230,7 +260,7 @@ def flags_for(item: dict[str, Any], answer: str,
 # the one no regex can score.
 
 
-def main(argv: list[str] | None = None) -> int:
+def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--skin', default='csc134')
     p.add_argument('--module', default='m0')
@@ -238,7 +268,59 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument('--model', default='llama3.2:3b',
                    help='ollama backend only; anthropic uses the skin registry')
     p.add_argument('--num-ctx', type=int, default=32768)
+    p.add_argument('--runs', type=int, default=1, metavar='N',
+                   help='sample each item N times and report a rate. '
+                        'Defaults to 1, which prints exactly what it always did.')
+    return p
+
+
+def _print_flag(item: dict[str, Any], flag: str, indent: str) -> None:
+    print(f'{indent}>>> {flag}')
+    hint = (item.get('failure_modes') or {}).get(flag.replace('-', '_'))
+    if hint:
+        print(f'{indent}    {hint.strip()}')
+
+
+def _report_one_run(item: dict[str, Any], result: tuple) -> None:
+    """The single-run format, unchanged since the first bank ran."""
+    answer, prompt_tokens, _, found = result
+    mark = 'FLAG' if found else '    '
+    print(f'{mark} {item["id"]}  [{item["type"]}]  ({prompt_tokens} prompt tokens)')
+    print(f'     student: {item["student"]}')
+    for f in found:
+        _print_flag(item, f, '     ')
+    body = answer.strip().replace('\n', '\n     ')
+    print(f'     bot: {body[:700]}\n')
+
+
+def _report_many_runs(item: dict[str, Any], results: list[tuple]) -> None:
+    """Rate first, then every run in full.
+
+    Every transcript is printed, not just the flagged ones. The whole point
+    of a rate is comparing what the bot said on the run that flagged against
+    what it said on the runs that didn't — printing only the failure leaves
+    the reader with nothing to compare it to.
+    """
+    runs = len(results)
+    clean = sum(1 for r in results if not r[3])
+    mark = VERDICT_MARKS[verdict([r[3] for r in results])]
+    print(f'{mark} {item["id"]}  [{item["type"]}]  {clean}/{runs} clean')
+    print(f'     student: {item["student"]}')
+    for n, (answer, prompt_tokens, _, found) in enumerate(results, 1):
+        state = 'clean' if not found else 'flagged'
+        print(f'     -- run {n}/{runs}: {state} ({prompt_tokens} prompt tokens)')
+        for f in found:
+            _print_flag(item, f, '        ')
+        body = answer.strip().replace('\n', '\n        ')
+        print(f'        bot: {body[:700]}')
+    print()
+
+
+def main(argv: list[str] | None = None) -> int:
+    p = build_parser()
     args = p.parse_args(argv)
+    if args.runs < 1:
+        p.error('--runs must be at least 1')
 
     bank = load_bank(args.skin, args.module)
     context, persona, notes, system, skin_model = compose(args.skin, args.module)
@@ -250,39 +332,63 @@ def main(argv: list[str] | None = None) -> int:
     print(f'system prompt: {len(system)} chars (~{estimate} tokens estimated)')
     print(f'model: {model}' + (f'  num_ctx={args.num_ctx}' if on_ollama else '') + '\n')
 
-    flagged = 0
-    for item in bank['items']:
+    if args.runs > 1:
+        print(f'runs: {args.runs} per item '
+              f'({args.runs * len(bank["items"])} calls total)')
         if on_ollama:
-            answer, prompt_tokens, stop_reason = ask_ollama(
-                system, item['student'], model, args.num_ctx)
-            # The measured ADR-0003 gotcha: Ollama's default context is
-            # 2048, and a silently truncated run answers fluently enough to
-            # read as a pass. Assert per run, never configure once and
-            # trust.
-            if prompt_tokens < estimate * 0.9:
-                print(f'ABORT: prompt_eval_count={prompt_tokens} against an '
-                      f'estimated {estimate} tokens — the window was truncated, '
-                      f'so every result below would be meaningless.')
-                return 2
+            # Worth a loud warning rather than a quiet caveat. ADR-0003 fixes
+            # temperature 0 for reproducibility, so N runs here resample a
+            # deterministic decoder and come back the same. That reads as
+            # "3/3 clean" — a confident-looking rate built from one sample,
+            # which is worse than one sample honestly labelled.
+            print('WARNING: the ollama backend samples at temperature 0, so '
+                  'these runs are\n         near-identical and the rate is '
+                  'not a measurement. Use --backend\n         anthropic for a '
+                  'rate that means anything (K5).')
+        print()
+
+    flagged = 0
+    varied = 0
+    for item in bank['items']:
+        results = []
+        for _ in range(args.runs):
+            if on_ollama:
+                answer, prompt_tokens, stop_reason = ask_ollama(
+                    system, item['student'], model, args.num_ctx)
+                # The measured ADR-0003 gotcha: Ollama's default context is
+                # 2048, and a silently truncated run answers fluently enough to
+                # read as a pass. Assert per run, never configure once and
+                # trust.
+                if prompt_tokens < estimate * 0.9:
+                    print(f'ABORT: prompt_eval_count={prompt_tokens} against an '
+                          f'estimated {estimate} tokens — the window was truncated, '
+                          f'so every result below would be meaningless.')
+                    return 2
+            else:
+                answer, prompt_tokens, stop_reason = ask_anthropic(
+                    context, persona, notes, item['student'], model)
+            results.append((answer, prompt_tokens, stop_reason,
+                            flags_for(item, answer, stop_reason)))
+
+        outcome = verdict([r[3] for r in results])
+        flagged += outcome != 'clean'
+        varied += outcome == 'varied'
+        if args.runs == 1:
+            _report_one_run(item, results[0])
         else:
-            answer, prompt_tokens, stop_reason = ask_anthropic(
-                context, persona, notes, item['student'], model)
+            _report_many_runs(item, results)
 
-        found = flags_for(item, answer, stop_reason)
-        flagged += bool(found)
-        mark = 'FLAG' if found else '    '
-        print(f'{mark} {item["id"]}  [{item["type"]}]  ({prompt_tokens} prompt tokens)')
-        print(f'     student: {item["student"]}')
-        for f in found:
-            print(f'     >>> {f}')
-            hint = item.get('failure_modes', {}).get(f.replace("-", "_"))
-            if hint:
-                print(f'         {hint.strip()}')
-        body = answer.strip().replace('\n', '\n     ')
-        print(f'     bot: {body[:700]}\n')
-
-    print(f'{flagged} of {len(bank["items"])} items flagged. '
-          f'Flags are triage, not a verdict — read the transcripts.')
+    total = len(bank['items'])
+    if args.runs == 1:
+        print(f'{flagged} of {total} items flagged. '
+              f'Flags are triage, not a verdict — read the transcripts.')
+    else:
+        print(f'{flagged} of {total} items flagged on at least one of '
+              f'{args.runs} runs; {varied} varied between runs. '
+              f'A rate is a better measurement than one sample and still '
+              f'not a verdict — read the transcripts.')
+    # Always 0. K16: gating on persona judgement needs an ADR superseding K3,
+    # and a rate alone is not the thing that would justify one.
     return 0
 
 
