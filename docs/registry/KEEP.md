@@ -145,6 +145,38 @@ pass condition (ADR-0005 §8) — not a single sample of a judgement call.
 *Evidence:* `.github/workflows/live.yml`;
 `system1-flask-chat/tests/test_live_anthropic.py`; `pytest.ini` (`-m "not live"`).
 
+### K18 — Code the course hands over is quotable; code the student is graded on writing is not
+
+The line "never hand over a solution" has no meaning until you say which code is
+whose. The corpus hands students code constantly — setup snippets, walkthrough
+steps, the `int main() { // Your code here  return 0; }` skeleton every M1
+assignment prints under *"Your code structure should follow this pattern"*.
+Quoting that is pointing at the material, which is the job. The body of the
+program — the output lines, the logic, the calculation — is the deliverable and
+is not the bot's to write.
+
+Getting this wrong is not hypothetical: eval item `m0-02` demanded a refusal of
+the exact code `assignments/m0/01_workspace_setup.md` Step 4 tells the student to
+paste. Five live samples were spent before anyone noticed the item was ill-posed
+rather than the model unstable. The item was retired, not repaired, and its id
+was not reused so the `observed_variance` history still reads.
+
+The refusal also has a shape rather than being a wall: *go through the gate
+together and write the pseudocode first.* A student out of time leaves with a
+plan they wrote and can defend. This is the gate as a helping posture, held by
+the bot — **not** the gate curriculum, which K13 keeps away from first-years, and
+not student-held gate authority, which `the_algorithm`'s K17 scopes to late
+capstone.
+
+Numbered K18, skipping K17, because this repo cites `the_algorithm`'s K17 by name
+often enough that a local K17 would read as the same entry.
+
+*Evidence:* `system1-flask-chat/context/csc134_persona.md`
+(*"WHAT COUNTS AS 'THE SOLUTION'"*, rule 1); `scripts/eval_persona.py`
+(`_handed_over_a_solution`); `tests/test_eval_persona.py`
+(`test_does_not_flag_the_skeleton_the_corpus_hands_over`); `evals/csc134/m1.yaml`
+item `m1-03`, which fails if the bot *withholds* the skeleton.
+
 ---
 
 ## Negotiating
@@ -222,12 +254,12 @@ Each row carries its evidence and links to its issue. B11-B13 share one thread.
 |---|---|---|
 | ~~[B1](https://github.com/norrisaftcc/tool-teacherbot/issues/23)~~ | ~~**Alembic / Flask-Migrate**~~ — **done**, ADR-0006. Landed before the capstone rather than after, and on a fresh database so the baseline needed no hand-run `stamp`. | ADR-0006 |
 | [B2](https://github.com/norrisaftcc/tool-teacherbot/issues/24) | **SHA-pin the corpus sync.** `fetch_upstream` uses `git clone --branch`, which cannot take a SHA, so every manifest tracks a moving branch and no provenance SHA is recorded. Prerequisite for ADR-0005. | `scripts/sync_course_corpus.py:33-38` |
-| [B3](https://github.com/norrisaftcc/tool-teacherbot/issues/25) | **Pin `marked` and add SRI**, or vendor it into `static/js/`. Currently unpinned and unhashed, feeding `innerHTML`. Could not be done from the dev container — jsdelivr is unreachable through the proxy, and pinning to an unverified version would break rendering. | `system1-flask-chat/templates/chat.html:162`; `static/js/chat.js` |
+| ~~[B3](https://github.com/norrisaftcc/tool-teacherbot/issues/25)~~ | ~~**Pin `marked` and add SRI**, or vendor it into `static/js/`.~~ — **done** in #41, which vendored `marked@18.0.7` and dropped the CDN tag; #42 then repointed the XSS check at the vendored bytes rather than the npm build. The row outlived its fix and was caught by a gap analysis rather than by anyone reading the register — the same drift this file exists to prevent, one level up. | `static/js/marked.umd.js`; `system1-flask-chat/tests/js/render_check.mjs` |
 | [B4](https://github.com/norrisaftcc/tool-teacherbot/issues/26) | **Admin auth is a URL query parameter.** `?password=…` lands in Render access logs and browser history. Replace with a POST form. Deferred by issue #2 and never tracked. | `system1-flask-chat/routes.py:271` |
 | [B5](https://github.com/norrisaftcc/tool-teacherbot/issues/27) | **No CSRF protection.** `flask-wtf` is not in requirements. Deferred by issue #2 and never tracked. | `system1-flask-chat/requirements.txt` |
 | [B6](https://github.com/norrisaftcc/tool-teacherbot/issues/28) | **`increment_tokens` has a read-modify-write race.** Two concurrent requests can both read the old value. Harmless at a cohort's message rate; not harmless as a graded ledger. | `system1-flask-chat/models.py:48` |
 | [B7](https://github.com/norrisaftcc/tool-teacherbot/issues/29) | **Admin view is read-only.** No budget editing, no transcript reading — conversations are fetched and never rendered. | `system1-flask-chat/routes.py:269`; `templates/admin.html` |
-| [B8](https://github.com/norrisaftcc/tool-teacherbot/issues/30) | **`--runs N` for the eval harness** — now the highest-value backlog row. Each item runs once, and `live.yml` runs the bank weekly, so we are about to accumulate a series of single samples of a thing `m0.yaml` already records as varying (`observed_variance: m0-02: 1 of 3 runs produced a code skeleton`). Without a rate, that series is noise someone will read as a trend. | `scripts/eval_persona.py:187`; `evals/csc134/m0.yaml`; `.github/workflows/live.yml` |
+| ~~[B8](https://github.com/norrisaftcc/tool-teacherbot/issues/30)~~ | ~~**`--runs N` for the eval harness.**~~ — **done** in #44. `live.yml` samples each item three times, the smallest N that distinguishes always / never / sometimes. An item that is clean twice and flagged once now prints `VARY` rather than being rounded to either neighbour. Still not a gate: K16 wants a rate *and* a byte-exact pass condition, and this is the first half. | `scripts/eval_persona.py` (`verdict`); `.github/workflows/live.yml` |
 | [B9](https://github.com/norrisaftcc/tool-teacherbot/issues/31) | **Test deps ship to production.** `pytest` and `pytest-flask` are in the requirements file Render installs. | `system1-flask-chat/requirements.txt` |
 | [B10](https://github.com/norrisaftcc/tool-teacherbot/issues/32) | **Stale root documentation.** ~3,269 lines across nine files describe a five-group project shape that no longer exists; `README.md` still advertises deleted credentials. | `README.md`, `CLAUDE.md`, and seven others |
 | [B11](https://github.com/norrisaftcc/tool-teacherbot/issues/33) | **`.DS_Store` is tracked** at the root and in `design/`. `.gitignore` covers only the latter, which is inert since it is already tracked. | `.gitignore:219` |
