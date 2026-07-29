@@ -17,15 +17,30 @@ import os
 
 import pytest
 
+from live_gate import MISSING_KEY_IN_CI, has_key, live_required, should_skip
+
 pytestmark = [
     pytest.mark.live,
     pytest.mark.skipif(
-        not os.getenv('ANTHROPIC_API_KEY'),
         # Skip, not fail: a contributor running `-m live` without a key
-        # should get a clear reason, not an auth traceback.
-        reason='ANTHROPIC_API_KEY not set',
+        # should get a clear reason, not an auth traceback. CI sets
+        # REQUIRE_LIVE_TESTS=1, which removes that grace — see live_gate.
+        should_skip(),
+        reason=f'{"ANTHROPIC_API_KEY"} not set',
     ),
 ]
+
+
+@pytest.fixture(autouse=True)
+def _fail_rather_than_skip_in_ci():
+    """A green run that made no API calls is the failure mode to prevent.
+
+    Reached only when REQUIRE_LIVE_TESTS=1 suppressed the skipif above; with
+    no key the tests would otherwise raise an opaque auth error, which reads
+    as a broken test rather than a broken workflow.
+    """
+    if live_required() and not has_key():
+        pytest.fail(MISSING_KEY_IN_CI)
 
 SKIN = 'csc134'
 MODULE = 'm0'
