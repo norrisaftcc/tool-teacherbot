@@ -34,13 +34,31 @@ jobs:
 
       - run: pip install -r system1-flask-chat/requirements.txt
 
+      - name: Check the secret is actually here
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        # An unset or misnamed secret expands to an empty string, not an
+        # error. Caught here for a legible message; REQUIRE_LIVE_TESTS below
+        # catches it again at the pytest layer, and also catches a skip
+        # introduced for some future reason.
+        run: |
+          if [ -z "${ANTHROPIC_API_KEY}" ]; then
+            echo "::error::ANTHROPIC_API_KEY is empty. The repository secret is"
+            echo "::error::missing, misnamed, or not exposed to this job."
+            exit 1
+          fi
+          echo "secret present (${#ANTHROPIC_API_KEY} chars)"
+
       - name: Run live tests
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Turns "no key" from a skip into a failure. Without it, a missing
+          # secret means three skips and a green check — a job that reports
+          # success having made no API calls. See tests/live_gate.py.
+          REQUIRE_LIVE_TESTS: '1'
         # -m live opts in; pytest.ini deselects the marker by default.
-        # -rs so a missing secret shows up as a reported skip rather than a
-        # green run that tested nothing — the failure mode this job exists
-        # to avoid is looking like it passed.
+        # -rs prints skip reasons, so if anything still skips it is visible
+        # in the log rather than hidden behind a summary count.
         run: python -m pytest -m live -q -rs
 
   # ---------------------------------------------------------------------
@@ -72,7 +90,17 @@ jobs:
       - name: Run the csc134 m0 behaviour bank
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        # pipefail matters: `python … | tee` reports *tee's* exit status, so
+        # without it a crashed eval — bad key, dead model, corpus that fails
+        # to load — is masked by tee succeeding at writing the traceback to a
+        # file, and the job goes green.
+        #
+        # This is not in tension with the job being non-gating. K3 says
+        # persona *flags* are not a verdict; it does not say the harness
+        # crashing is fine. Flagged items still exit 0 and still produce an
+        # artifact. A crash is a mechanical failure and should be red.
         run: |
+          set -o pipefail
           python scripts/eval_persona.py \
             --skin csc134 --module m0 --backend anthropic \
             | tee eval-csc134-m0.txt
