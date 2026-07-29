@@ -1,6 +1,9 @@
 flask==3.0.0
 flask-login==0.6.3
 flask-sqlalchemy==3.1.1
+# Runtime, not dev: `flask db upgrade` runs on the server as a pre-deploy
+# step (ADR-0006), so it has to be in the image Render builds.
+flask-migrate==4.1.0
 anthropic==0.101.0
 python-dotenv==1.0.0
 gunicorn==21.2.0

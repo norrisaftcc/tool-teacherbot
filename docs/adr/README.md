@@ -21,6 +21,7 @@ forced the choice, the option we picked, and what living with it will cost.
 | [0003](0003-local-model-backend-for-dev-and-eval.md) | A local (Ollama) model backend for development and evaluation | Accepted |
 | [0004](0004-identity-memory-and-the-session-boundary.md) | Seat identity, server-side memory, and the session boundary | Proposed |
 | [0005](0005-repoint-the-csc114-slot-to-the-prompt-wizard.md) | Repoint the csc114 slot to the Prompt Wizard | Proposed |
+| [0006](0006-adopt-alembic-for-schema-migrations.md) | Adopt Alembic, and rebuild on Render Pro rather than migrating | Proposed |
 
 ## Template
 

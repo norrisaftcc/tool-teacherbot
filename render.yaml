@@ -1,27 +1,46 @@
 # Render Blueprint for System 1 (teacherbot).
 #
-# Note: applying this Blueprint via the Render dashboard requires a payment
-# method on file (Render policy, even for free-tier). The canonical bootstrap
-# procedure uses CLI + REST (no Blueprint) and is documented at
-# docs/superpowers/plans/2026-05-16-render-deployment.md. This file is kept
-# in sync with what was deployed so a future "New Blueprint" flow reproduces
-# the same teacherbot/teacherbot-db pair.
+# This is now the canonical bootstrap. The dashboard's Blueprint flow requires
+# a payment method on file, which was the reason the original deploy went
+# through CLI + REST instead (docs/superpowers/plans/2026-05-16-render-deployment.md,
+# still accurate for that path). On Pro tier that gate is satisfied, so
+# "New Blueprint" reproduces the whole stack from this file.
+#
+# BEFORE APPLYING: the three `plan:` values below are placeholders. See the
+# note above each one — a wrong value silently provisions the wrong tier, and
+# on the database that means re-inheriting the 30-day expiry this rebuild
+# exists to escape.
 
 services:
   - type: web
     name: teacherbot
     env: python
+    # Placeholder — replace with the paid web plan from the Render dashboard.
+    # Free-tier web services spin down after ~15 minutes idle and cold-start in
+    # 30-60s, which is the whole first minute of a class period.
+    plan: REPLACE_WITH_PAID_WEB_PLAN
     rootDir: system1-flask-chat
     buildCommand: pip install -r requirements.txt
+    # Applies migrations before the new version takes traffic (ADR-0006).
+    # Pre-deploy commands are a paid-plan feature. If this fails the deploy is
+    # blocked, which is correct — a half-migrated database serving requests is
+    # worse than no deploy.
+    preDeployCommand: flask db upgrade
     startCommand: gunicorn "app:create_app()"
     autoDeploy: true
     envVars:
+      # create_app() raises at startup if either secret is missing — there are
+      # deliberately no fallbacks, because the old ones ('dev-secret', 'admin')
+      # are published in this public repo.
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: FLASK_SECRET_KEY
         sync: false
       - key: ADMIN_PASSWORD
         sync: false
+      # Required by `flask db upgrade` in preDeployCommand.
+      - key: FLASK_APP
+        value: app:create_app
       - key: DATABASE_URL
         fromDatabase:
           name: teacherbot-db
@@ -29,4 +48,19 @@ services:
 
 databases:
   - name: teacherbot-db
-    plan: free
+    # Placeholder — replace with the paid Postgres plan identifier.
+    # Do NOT leave this as `free`: free Postgres carries a 30-day rolling
+    # expiry, which is what killed the previous instance and what makes graded
+    # transcripts impossible to keep.
+    plan: REPLACE_WITH_PAID_DB_PLAN
+
+  # Rehearsal target for migrations (ADR-0006 §5, register K15). Narrow job on
+  # purpose: a migration is applied here first, then to main. The test suite
+  # runs on SQLite, which accepts things Postgres rejects — type changes,
+  # constraints added against existing data, a non-null column on a populated
+  # table. Only a Postgres run proves a migration survives real data.
+  #
+  # Nothing deploys against this automatically. Point a one-off shell at it:
+  #     DATABASE_URL=<staging-internal-url> flask db upgrade
+  - name: teacherbot-db-staging
+    plan: REPLACE_WITH_PAID_DB_PLAN
