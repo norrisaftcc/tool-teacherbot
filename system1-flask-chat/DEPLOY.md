@@ -86,7 +86,7 @@ suspend or rename it, or adjust the names in `render.yaml`.
 | `ANTHROPIC_API_KEY` | Instructor's key from https://console.anthropic.com/. Starts with `sk-ant-`. |
 | `FLASK_SECRET_KEY` | Generated random hex: `python3 -c "import secrets; print(secrets.token_hex(32))"`. Rotate on suspected leak. |
 | `ADMIN_PASSWORD` | Chosen string. Gates `/<slug>/admin?password=…` per skin (e.g. `/csc114/admin?password=…`). Alpha-grade auth — replace before public use. |
-| `DATABASE_URL` | Connection string from the `teacherbot-db` instance. Use the **internal** one — the external requires a TLS handshake that flakes from inside Render's network. `app.py` rewrites `postgres://` and `postgresql://` to `postgresql+psycopg://`. |
+| `DATABASE_URL` | Connection string from the `teacherbot-pro-db` instance. Use the **internal** one — the external requires a TLS handshake that flakes from inside Render's network. `app.py` rewrites `postgres://` and `postgresql://` to `postgresql+psycopg://`. |
 | `FLASK_APP` | `app:create_app`. Required by `flask db upgrade` in the pre-deploy command; without it the deploy fails before the app starts. |
 
 **`FLASK_SECRET_KEY` and `ADMIN_PASSWORD` are now hard requirements.** They
@@ -103,7 +103,7 @@ variable and redeploy.
 |---|---|
 | `<SLUG>_ACTIVE_MODULE` | Advance the corpus window without a commit, e.g. `CSC134_ACTIVE_MODULE=m3`. A value that resolves to no corpus path is logged and ignored rather than blanking the prompt. |
 | `CSC134_PASSCODE` | Override the cohort passcode in `auth.py`. Set this to rotate without publishing the new value in a public commit. |
-| `GROUP_TOKEN_BUDGET` | Per-cohort token ceiling for newly created groups (default 25,000,000). Existing rows are lifted to the default at next login — a column default only applies on INSERT, and there is no migrations framework. |
+| `GROUP_TOKEN_BUDGET` | Per-cohort token ceiling for newly created groups (default 25,000,000). Existing rows are lifted to the default at next login by `Group.raise_budget_floor()`, because a column default only applies on INSERT. That workaround predates Alembic (ADR-0006) and is scheduled for removal when the budget moves to a seat (ADR-0004). Note this variable is **not** declared in `render.yaml`, so production runs on the 25M fallback. |
 
 Read or update env vars:
 
@@ -151,7 +151,7 @@ populated table. A green suite is not evidence that a migration survives real
 data.
 
 ```bash
-# Internal connection string for teacherbot-db-staging
+# Internal connection string for teacherbot-pro-db-staging
 export DATABASE_URL='<staging-internal-url>'
 export FLASK_APP=app:create_app
 cd system1-flask-chat && flask db upgrade

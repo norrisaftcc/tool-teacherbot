@@ -95,7 +95,7 @@ run when `TESTING` is false, and does when it is true.
 
 ### 5. Staging is for rehearsing migrations, not for parity
 
-A second Postgres, `teacherbot-db-staging`. Its job is narrow and worth stating
+A second Postgres, `teacherbot-pro-db-staging`. Its job is narrow and worth stating
 so it does not drift into being a half-maintained clone of production: a
 migration is applied there first, and only then to `main`.
 

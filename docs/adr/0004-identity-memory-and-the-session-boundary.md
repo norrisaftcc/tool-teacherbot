@@ -17,6 +17,41 @@ wrong is the useful part of the record.
 | K10 · budget | Per-seat, denominated in tokens as counted today — §2, §"Consequences" |
 | K8 · session boundary | Asymmetric: frozen replays, open does not — §3, unchanged |
 
+### Second amendment, 2026-07-29 — scope, after a readiness review
+
+A four-agent review of this record against the code found three factual errors
+in it (marked inline below as corrections) and two design gaps neither this ADR
+nor the register owned. The course lead answered four further questions. **The
+effect is to narrow what ships, not to change what was frozen.**
+
+| Question | Answer | Consequence |
+|---|---|---|
+| What does a frozen exchange replay? | **Nothing yet.** `frozen_at` ships as a nullable column that no endpoint writes and no code reads. | §3's asymmetry is *specified* but not *implemented*. The replay branch does not exist, so it cannot ship as unreachable dead code, and the escalation risk below cannot fire. |
+| What bounds turn replay? | **The last N turns, N fixed and small.** | See §5. Without it, cumulative spend is quadratic in turn count. |
+| What is the per-seat budget? | **Measure first.** The cohort ceiling stays as a backstop; the seat number is set from a measurement once replay is live. | K10's own text asks for "a measurement, not an inherited constant"; the old 25M÷seats arithmetic assumed constant per-message cost, which memory breaks. |
+| Spike or build? | **Spike first**, on staging, throwaway. | Also settles what exists on Render, which is the real first blocker. |
+
+**§4 named a column that does not exist.** It says the assessable unit is
+"`frozen_at` plus the floor's content at freeze time" — and the DDL has only the
+timestamp. Deferring the freeze semantics is what resolves that: the floor's
+storage is decided in the follow-on ADR that implements it, alongside the
+mitigation below.
+
+**A gap this record did not own: K8 × K9 compose into a write primitive.**
+K9 makes the handle client-supplied, unverified and free to mint, and it *keys
+the seat*. K8 says frozen content is replayed "byte-exact" into the **system
+prompt**. So a student could log in with the shared cohort passcode, type a
+peer's handle, freeze a floor, and have it replay above the persona's
+pedagogical rules in that peer's next session. K9's justification is written
+entirely against a *read* threat — impersonation, corroborating commit
+authorship. Commit authorship attributes work; it says nothing about writing
+into someone else's operative floor.
+
+This does not reopen K8 or K9. §3 already requires that resuming a frozen
+exchange emit a confirmation the human must answer — **that confirmation is the
+mitigation**, and the follow-on ADR must say so explicitly rather than leaving
+it as a UX detail. Deferring the freeze means nothing is exposed meanwhile.
+
 ## Context
 
 The stated direction is memory: students should be able to talk to the
@@ -28,8 +63,8 @@ Three facts about what exists today, all verified against the code.
 
 **1. There is no memory. There is a page variable.**
 
-`static/js/chat.js:7` is `let history = []`. The browser holds it, the browser
-sends it (`chat.js:26`), and `routes.py:146` and `routes.py:197` read it back
+`static/js/chat.js:70` is `let history = []`. The browser holds it, the browser
+sends it (`chat.js:89`), and `routes.py:189` and `routes.py:241` read it back
 off the request body. Refresh the tab and the conversation is gone. That is the
 whole of it.
 
@@ -179,7 +214,10 @@ raises per-message spend against that same shared pool.
 **The legacy tables are dropped, not retained.** `conversations` and `messages`
 hold demo traffic plus the finished CSC 114 pilot, which K12 already wrote off as
 moot. This is the **first Alembic migration against production data and the first
-destructive one**, so K15 binds hard: rehearse on `teacherbot-db-staging` first.
+destructive one**, so K15 binds hard: rehearse on `teacherbot-pro-db-staging`
+first — and **seed it**, because `flask db upgrade` against an empty Postgres
+proves the DDL parses and nothing else. See also the note below on whether there
+are any production rows left to destroy.
 `tests/test_migrations.py` runs on SQLite and will not tell you what Postgres
 does with a DROP against live rows and live foreign keys.
 
@@ -190,7 +228,7 @@ against the code, not assumed:
 |---|---|
 | `scripts/export_group_transcripts.py:57-66` | **The one that dies quietly.** K12 keeps this script for the next retired cohort and it reads *only* the legacy tables. Repoint it at `Seat`/`Exchange`/`Turn` or K12 becomes false. |
 | `routes.py:210-220`, `:278-288` | Both chat write paths. They stop writing `Conversation`/`Message` and start writing `Turn`. |
-| `routes.py:310-326` | The admin view (#29), which already queries conversations and drops them unrendered. |
+| `routes.py:310-326` + `templates/admin.html:68-101` | The admin view (#29). **Correction (2026-07-29):** this record and KEEP B7 both said the conversations are "fetched and never rendered." They are rendered — group name, `started_at`, message count, and the last user message previewed to 80 chars. The template traverses `conv.group`, `conv.messages`, `m.content`, so the rework is larger than "start rendering what you already fetch", and no test catches a regression there: `test_admin_accessible_with_correct_password` hits admin with no Group row, so `conversations` is empty and the render branch never executes. |
 | `models.py:80` | `Group.conversations` relationship. |
 | `templates/chat.html:44` | Student-facing copy: *"Conversations logged for instructor review."* |
 
@@ -241,6 +279,69 @@ Undifferentiated memory would satisfy the letter of "persist the conversation"
 and still fail to produce anything gradeable. The distinguishing column is the
 point of the design, not an ornament on it.
 
+### 5. Turn replay is windowed to the last N turns
+
+*Added 2026-07-29. The original record had no concept of a replay window, which
+was the largest gap in it.*
+
+ADR-0002 windowed the corpus because loading all of it per message was
+unaffordable. This ADR adds a **second unbounded prompt input and windows
+nothing** — `Turn` has no retention rule, no truncation, and no cap.
+
+The thing that hides it: `chat.js:70` resetting `history = []` on refresh is the
+*de facto* window today, and this design deletes it. Per-message cost stops being
+constant and becomes linear in turn index, so cumulative spend is quadratic.
+Order-of-magnitude, at ~250 tokens/turn over a 36-message session on the m0
+window:
+
+| | tokens |
+|---|---|
+| cached prefix, 36 messages | ~238k, billed at cache-read rates |
+| replayed turns, unwindowed | **~315k, uncached, full input rate** |
+
+Replay would cost more than the corpus window ADR-0002 was written to bound —
+the same mistake one layer up. And `_usage_total` bills every replayed token at
+full weight against the seat (K10), so the budget drains faster the longer a
+student works, which is precisely backwards for a tool meant to reward sticking
+with a problem.
+
+**Decision: replay the last N turns, N fixed and small.** Per-message cost
+returns to constant, spend stays linear, and it is the same move ADR-0002
+already makes on the corpus. A student wanting more scrolls their own
+transcript — the full history is in the database and on their screen; the window
+governs only what re-enters the *prompt*.
+
+N is not fixed here. It should be set from the same measurement that sets the
+per-seat budget, because the two are one question: what a message costs.
+
+### 6. The frozen floor does not enter the cached system block
+
+*Added 2026-07-29.*
+
+`_system_blocks` emits **one** block carrying persona + notes + corpus with
+`cache_control: ephemeral, ttl 1h`. Its economics depend on a property nothing
+in this repo tests: the block is byte-stable for a given (skin, active module),
+so **every student in a cohort shares one cache entry**.
+
+Caching is a prefix match. Any per-seat byte inside that block gives every seat
+its own entry, turning one cache write plus N reads into N writes — and 1h
+writes bill at roughly 2x where reads bill at roughly 0.1x.
+
+The trap is that this is **silent and unfalsifiable from inside the app**.
+`_usage_total` counts `cache_creation_input_tokens` and
+`cache_read_input_tokens` at full weight, which K10 just froze as deliberate, so
+the admin page shows the identical number either way. Only the invoice moves.
+The 4096-token floor guard does not catch it either — adding content only ever
+*raises* the prefix, so the guard passes.
+
+**So: any per-seat content goes in a second, uncached block after the
+breakpoint.** Add the parameter to `_system_blocks` and the `get_claude_response`
+family, **not** to `build_system_prompt`, whose output `test_auth.py`,
+`test_claude_handler.py` and `scripts/eval_persona.py` all assert against. And
+add the missing guard — assert `_system_blocks(...)[0]` is byte-identical for two
+different seats — because right now the property the cost model rests on has no
+test at all.
+
 ## Consequences
 
 **Easier.** Refresh stops destroying a conversation, which is the actual stated
@@ -251,8 +352,20 @@ per-cohort budget defect is fixed by the same table that fixes identity.
 **Harder.** Every chat request grows a database read on the hot path. The
 budget's meaning changes, so the admin view needs rework to show seats rather
 than one cohort row. `export_group_transcripts.py` has to be repointed in the
-same change or it breaks silently — it is not covered by any test, because it is
-a one-shot operator script.
+same change.
+
+> **Correction (2026-07-29).** This said the export script "is not covered by
+> any test, because it is a one-shot operator script." That is false.
+> `tests/test_export_group_transcripts.py` exists — 131 lines, 10 tests, against
+> a real on-disk SQLite database with two cohorts in it.
+>
+> The real hazard is sharper than the one this record named, and worse. Five of
+> the ten build `Conversation`/`Message` rows and will break loudly. **The other
+> five touch neither model and keep passing.** An implementer who deletes the
+> five broken tests rather than rewriting them gets a green suite with zero
+> coverage of `export_group()` — the one function that runs once, against
+> production, on data that becomes unreachable immediately afterwards. Rewrite
+> them; do not delete them.
 
 **Irreversible.** Dropping `conversations` and `messages` destroys the demo
 traffic and the CSC 114 pilot rows. K12 already ruled those written off, so this
@@ -279,21 +392,58 @@ pricing ratios nothing would notice going stale. The comment at
 
 - `system1-flask-chat/tests/test_routes.py:20` and
   `system1-flask-chat/tests/test_skins.py:24` — both `_login` helpers post only
-  `{'password': …}`. If the handle is required, roughly twenty tests 302 to
-  login instead of reaching `/chat`. Fix the two helpers rather than making the
-  field optional; an optional identity field is not an identity.
-- `system1-flask-chat/tests/test_models.py` — `token_budget` assertions need
-  rehoming to `Seat`.
-- Any test asserting request-supplied history reaches `claude_handler`. The
-  model-routing tests bind arguments via `inspect.signature`
-  (`test_skins.py:74-80`) and will surface a changed call shape immediately.
+  `{'password': …}`. **Counted, 2026-07-29: 15-17 collected items, not "roughly
+  twenty."** Fix the two helpers rather than making the field optional; an
+  optional identity field is not an identity. Two more corrections to what this
+  said:
+  - `test_skins.py:193` posts a login **directly**, not through the helper, so a
+    search-and-replace on `_login` misses it. It then fails on
+    `assert r.status_code == 302` and reports a cookie-limit regression that is
+    really a missing handle.
+  - **Two of them rot rather than break**, which is the dangerous half.
+    `test_cross_skin_session_redirects_to_correct_skin_login` and
+    `test_cross_skin_api_chat_is_gated` log into csc114 and assert csc134
+    rejects them. If the login silently fails for want of a handle,
+    `session['skin']` is never set, the second request is simply
+    unauthenticated, and every assertion still passes. Two cross-skin isolation
+    guarantees go green while testing nothing.
+- `system1-flask-chat/tests/test_models.py` — **the blast radius is the whole
+  file, not two tests.** Lines 2-5 import `Conversation` and `Message` at module
+  scope, so deleting those models is a pytest *collection error*: the run aborts
+  and every other file's results go dark with it. Also rehome the `token_budget`
+  assertions to `Seat` — five move cleanly;
+  `test_default_budget_survives_the_most_expensive_module` asserts a
+  cohort-sized arithmetic premise that becomes false per-seat and needs
+  rewriting, not moving.
+- **Correction: no test asserts request-supplied history reaches
+  `claude_handler`.** Zero. Every route test posts `'history': []`, so nothing
+  would notice the routes ceasing to read it. This is worse than a broken test,
+  not better — the fix has no failing test to turn green and no regression test
+  unless one is written first.
+- The `inspect.signature` bind (`test_skins.py:74-80`) is loud on the wrong
+  axis. It catches a renamed, reordered or added parameter. It does **not**
+  catch server-loaded turns arriving in the same `history` positional slot that
+  request-supplied ones used to occupy — same name, same position, binds
+  cleanly, and the assertions that follow never read `history`. True for the
+  shape, false for the content.
 
 ### Implementation notes for whoever picks this up
 
-- `routes.py:207-212` already documents the hazard: the SSE generator body runs
-  after the request context is torn down, which is why context, persona and
-  notes are read *outside* `generate()`. Turn loading must follow the same rule,
-  and the seat id must be captured outside the generator too.
+- **Correction (2026-07-29): the SSE premise this record was built on is false.**
+  It said the generator body "runs after the request context is torn down."
+  `routes.py` wraps the generator in `stream_with_context`, which exists to
+  prevent exactly that; verified on this Flask 3.0.0 that `session`, `request`
+  and the DB all work inside it, and the generator already proves it by running
+  `Group.query` and `db.session.commit()`.
+
+  Hoisting is still right, for a different reason: returning `Response()`
+  commits the status line, so nothing inside `generate()` can emit a 403 or 409,
+  and `session` mutations inside it never reach a `Set-Cookie`. **Anything that
+  decides whether to answer at all — the budget check, seat resolution, an
+  exhausted-seat rejection — must happen above the response.** Someone
+  implementing against the old stated reason would assume `session['seat_id']`
+  is unreadable in the generator (it is not) and leave the budget check inside,
+  where a 403 silently becomes an SSE error event.
 - Both chat paths must stop reading `data.get('history')` entirely. Ignoring it
   is what closes the forgery hole; validating it is not.
 - `chat.js` history becomes display-only, hydrated on load from a new

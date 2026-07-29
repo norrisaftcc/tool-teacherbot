@@ -184,7 +184,8 @@ migration fails on a table that already exists. Migrations are applied by
 The suite runs on SQLite, which accepts things Postgres rejects — type changes,
 constraints added against existing data, a non-null column on a populated table.
 `test_migrations.py` proves a migration matches the models; only a Postgres run
-proves it survives real data. `teacherbot-db-staging` exists for exactly this and
+proves it survives real data. `teacherbot-pro-db-staging` exists for exactly this
+and
 is not a general-purpose production clone.
 
 *Evidence:* ADR-0006 §5; `render.yaml`.
@@ -296,7 +297,7 @@ Each row carries its evidence and links to its issue. B11-B13 share one thread.
 | [B4](https://github.com/norrisaftcc/tool-teacherbot/issues/26) | **Admin auth is a URL query parameter.** `?password=…` lands in Render access logs and browser history. Replace with a POST form. Deferred by issue #2 and never tracked. | `system1-flask-chat/routes.py:271` |
 | [B5](https://github.com/norrisaftcc/tool-teacherbot/issues/27) | **No CSRF protection.** `flask-wtf` is not in requirements. Deferred by issue #2 and never tracked. | `system1-flask-chat/requirements.txt` |
 | [B6](https://github.com/norrisaftcc/tool-teacherbot/issues/28) | **`increment_tokens` has a read-modify-write race.** Two concurrent requests can both read the old value. Harmless at a cohort's message rate; not harmless as a graded ledger. | `system1-flask-chat/models.py:48` |
-| [B7](https://github.com/norrisaftcc/tool-teacherbot/issues/29) | **Admin view is read-only.** No budget editing, no transcript reading — conversations are fetched and never rendered. | `system1-flask-chat/routes.py:269`; `templates/admin.html` |
+| [B7](https://github.com/norrisaftcc/tool-teacherbot/issues/29) | **Admin view is read-only.** No budget editing, and no *full* transcript reading. **Corrected 2026-07-29:** this row said conversations "are fetched and never rendered" — `admin.html:68-101` does render them (group, `started_at`, message count, last user message previewed to 80 chars). What is missing is the full transcript, which is a smaller gap than the row claimed and a larger rework, since the template traverses relationships off the tables ADR-0004 drops. No test covers the render branch: the one admin test runs with no `Group` row, so the loop never executes. | `system1-flask-chat/routes.py:310-326`; `templates/admin.html:68-101` |
 | ~~[B8](https://github.com/norrisaftcc/tool-teacherbot/issues/30)~~ | ~~**`--runs N` for the eval harness.**~~ — **done** in #44. `live.yml` samples each item three times, the smallest N that distinguishes always / never / sometimes. An item that is clean twice and flagged once now prints `VARY` rather than being rounded to either neighbour. Still not a gate: K16 wants a rate *and* a byte-exact pass condition, and this is the first half. | `scripts/eval_persona.py` (`verdict`); `.github/workflows/live.yml` |
 | [B9](https://github.com/norrisaftcc/tool-teacherbot/issues/31) | **Test deps ship to production.** `pytest` and `pytest-flask` are in the requirements file Render installs. | `system1-flask-chat/requirements.txt` |
 | [B10](https://github.com/norrisaftcc/tool-teacherbot/issues/32) | **Stale root documentation.** ~3,269 lines across nine files describe a five-group project shape that no longer exists; `README.md` still advertises deleted credentials. | `README.md`, `CLAUDE.md`, and seven others |

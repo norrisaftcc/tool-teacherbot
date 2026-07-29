@@ -1,5 +1,19 @@
 # Render Deployment — System 1 Implementation Plan
 
+> **SUPERSEDED — do not act on this document.**
+>
+> A May 2026 plan for a stack that no longer exists. It provisions free-tier
+> Render resources under names (`teacherbot-db`) that were replaced by the Pro
+> Blueprint in `render.yaml`, and the database it describes has since been
+> deleted. It also predates Alembic (ADR-0006), so any schema reasoning in it is
+> wrong.
+>
+> It is kept for the reasoning, not the steps. Current operator truth is
+> `system1-flask-chat/DEPLOY.md`; current decisions are `docs/registry/KEEP.md`.
+>
+> This banner exists because the file opens by instructing an agent to execute
+> it task-by-task, which is the one kind of stale document that can do damage.
+
 > **SUPERSEDED by `docs/superpowers/plans/2026-05-16-render-deployment.md`.**
 > MCP tools assumed by this plan are not available. See the 2026-05-16 plan
 > for the CLI+REST approach actually used.

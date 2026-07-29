@@ -248,8 +248,19 @@ def skin_blueprint(slug: str) -> Blueprint:
         if group and group.tokens_remaining <= 0:
             return jsonify({'error': 'Token budget exhausted. Contact your instructor.'}), 403
 
-        # Read both outside generate() — the generator body runs after the
-        # request context is torn down.
+        # Read these outside generate(). The reason is NOT that the request
+        # context is gone inside it — that was the stated reason here for
+        # months and it is false. `stream_with_context` below keeps the
+        # context alive for the generator's lifetime; that is what it is for,
+        # and the generator already proves it by running Group.query and
+        # db.session.commit().
+        #
+        # The real constraint: returning Response() commits the status line,
+        # so nothing inside generate() can emit a 403 or 409 — a rejection
+        # would arrive as an SSE error event that the client has to notice —
+        # and session mutations inside it never reach a Set-Cookie header.
+        # So anything that decides *whether to answer at all* belongs above
+        # this line, next to the budget check.
         skin_context = load_skin_context(slug)
         skin_persona = load_skin_persona(slug)
         skin_notes = load_skin_notes(slug)
