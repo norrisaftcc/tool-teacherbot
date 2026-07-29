@@ -13,9 +13,18 @@ on:
     # :00 and get delayed.
     - cron: '17 6 * * 1'
 
+# Read-only on purpose. Neither job pushes, tags, or comments — they run pytest
+# and upload an artifact, and `actions/upload-artifact` does not use this token.
+#
+# This was briefly `contents: write`, added to try to let an agent session
+# dispatch the workflow. It cannot: `permissions:` scopes the GITHUB_TOKEN
+# *inside* a run, and a dispatch is authorised by the caller's own token before
+# any run exists. The setting that grants dispatch is Actions: Read and write on
+# the repository's GitHub App installation, which is not in this file or any
+# file. So the write grant bought nothing and widened what a compromised
+# dependency in this workflow could reach.
 permissions:
   contents: read
-  contents: write
 
 jobs:
   # ---------------------------------------------------------------------
