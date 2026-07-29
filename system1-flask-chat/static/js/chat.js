@@ -16,8 +16,8 @@
 // and turns raw HTML into visible text, which is the honest outcome for a
 // bot whose job is quoting course material.
 //
-// No DOMPurify: that would be another unpinned CDN script, which is the
-// problem in #25, not the solution to it.
+// No DOMPurify: that would be an additional third-party script, and marked
+// is now vendored locally anyway (#25).
 //
 // Today the blast radius is mostly a student's own session. #29 (an admin
 // transcript view) is what turns this into stored XSS against the
@@ -29,8 +29,8 @@ function escapeHtml(text) {
     .replace(/>/g, '&gt;');
 }
 
-// Set up once. `markedReady` stays false if the CDN script is missing or too
-// old to accept the override — in which case we render plain text rather
+// Set up once. `markedReady` stays false if the vendored script is absent or
+// the interface changed on upgrade — in which case we render plain text rather
 // than piping unsanitized HTML into innerHTML. Degrading to unformatted
 // output is a cosmetic loss; degrading to unsanitized output is not.
 let markedReady = false;
@@ -48,8 +48,9 @@ try {
     marked.use({
       renderer: {
         // Signature differs across marked majors — a string in v4 and
-        // earlier, a token object from v5. The CDN tag is unpinned (#25),
-        // so handle both rather than betting on which one loads.
+        // earlier, a token object from v5. Vendored as 18.0.7 (#25) so the
+        // token-object path is what runs, but the string branch is kept for
+        // safety on upgrade.
         html(token) {
           return escapeHtml(typeof token === 'string' ? token : token.text);
         },
@@ -121,13 +122,12 @@ form.addEventListener('submit', async (e) => {
           } else if (event.done) {
             // Snap to rendered Markdown on completion.
             //
-            // marked comes from a third-party CDN (chat.html). If that
-            // request fails, `marked` is undefined and this line throws
-            // inside the read loop — which the outer catch turns into
-            // "Network error. Please try again." over an answer that
-            // arrived intact, and skips the token-remaining update. Losing
-            // Markdown formatting is a cosmetic degradation; losing the
-            // answer to a misleading error is not.
+            // marked is now vendored (static/js/marked.umd.js, #25), so a
+            // missing CDN is no longer a failure mode. The markedReady guard
+            // still protects against the file being absent or the interface
+            // changing on upgrade — in which case we degrade to plain text
+            // rather than throwing inside the read loop and turning an intact
+            // answer into "Network error. Please try again.".
             bubble.classList.remove('cursor');
             if (markedReady) {
               bubble.innerHTML = marked.parse(fullText);

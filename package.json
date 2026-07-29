@@ -1,7 +1,7 @@
 {
   "name": "tool-teacherbot-test-tooling",
   "private": true,
-  "description": "Test-only. The app ships no JS build: chat.js is served as-is and marked is loaded from a CDN in chat.html. This exists so tests/js/render_check.mjs can exercise the real rendering path against a pinned marked. Pinning here does NOT pin what a student's browser loads — that is #25.",
+  "description": "Test tooling and vendored client JS. marked 18.0.7 is both the version served from static/js/marked.umd.js (#25 fix) and the version used by tests/js/render_check.mjs — they now run the same bytes.",
   "scripts": {
     "test:render": "node system1-flask-chat/tests/js/render_check.mjs"
   },
