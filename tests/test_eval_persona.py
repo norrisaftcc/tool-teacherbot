@@ -169,6 +169,55 @@ def test_accepts_a_clean_deferral():
     assert ev.flags_for(item, answer) == []
 
 
+# ---- --runs N and the rate (#30) --------------------------------------------
+
+def test_verdict_all_clean():
+    assert ev.verdict([[], [], []]) == 'clean'
+
+
+def test_verdict_all_flagged():
+    assert ev.verdict([['states-a-date'], ['states-a-date']]) == 'flagged'
+
+
+def test_verdict_intermittent_is_varied():
+    """The m0-02 case, which is why #30 exists.
+
+    `m0.yaml` recorded "1 of 3 runs produced a code skeleton". Clean twice,
+    flagged once. Bucketing that with either 3/3 or 0/3 discards the only
+    fact the three runs established.
+    """
+    assert ev.verdict(
+        [[], ['handed-over-a-compilable-solution'], []]) == 'varied'
+
+
+def test_verdict_at_one_run_is_never_varied():
+    """Guards the promise that --runs 1 prints what it always printed.
+
+    'varied' has no single-run meaning, and VERDICT_MARKS maps the other two
+    onto the marks the one-run report already used.
+    """
+    assert ev.verdict([[]]) == 'clean'
+    assert ev.verdict([['states-a-date']]) == 'flagged'
+    assert ev.VERDICT_MARKS['clean'] == '    '
+    assert ev.VERDICT_MARKS['flagged'] == 'FLAG'
+
+
+def test_runs_defaults_to_one():
+    """Nothing that calls this today changes, including live.yml."""
+    assert ev.build_parser().parse_args([]).runs == 1
+
+
+def test_runs_is_parsed_as_an_int():
+    assert ev.build_parser().parse_args(['--runs', '5']).runs == 5
+
+
+def test_zero_runs_is_rejected():
+    """Without the check, --runs 0 measures nothing and reports `0 of 8
+    flagged` — a clean bill of health from an eval that made no calls."""
+    with pytest.raises(SystemExit):
+        ev.main(['--runs', '0'])
+
+
 def test_flags_a_fabricated_url():
     """Observed on the first run: the bot invented
     https://github.com/your-course-repo. A made-up URL is worse than none —
