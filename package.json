@@ -1,9 +1,11 @@
 {
   "name": "tool-teacherbot-test-tooling",
   "private": true,
-  "description": "Test tooling and vendored client JS. marked 18.0.7 is both the version served from static/js/marked.umd.js (#25 fix) and the version used by tests/js/render_check.mjs — they now run the same bytes.",
+  "description": "Source for the vendored client JS. marked 18.0.7 is served from system1-flask-chat/static/js/marked.umd.js (#25); this pin is what regenerates that file on upgrade. Tests do NOT consume this dependency — render_check.mjs evaluates the vendored bundle directly, so it exercises the bytes the browser runs and needs no install.",
   "scripts": {
-    "test:render": "node system1-flask-chat/tests/js/render_check.mjs"
+    "test:render": "node system1-flask-chat/tests/js/render_check.mjs",
+    "vendor:marked": "npm ci && cp node_modules/marked/lib/marked.umd.js system1-flask-chat/static/js/marked.umd.js && cp node_modules/marked/LICENSE system1-flask-chat/static/js/marked.LICENSE.txt && sed -i.bak '/sourceMappingURL=marked.umd.js.map/d' system1-flask-chat/static/js/marked.umd.js && rm -f system1-flask-chat/static/js/marked.umd.js.bak",
+    "vendor:check": "npm run --silent vendor:marked && git diff --exit-code --stat system1-flask-chat/static/js/marked.umd.js system1-flask-chat/static/js/marked.LICENSE.txt"
   },
   "devDependencies": {
     "marked": "18.0.7"

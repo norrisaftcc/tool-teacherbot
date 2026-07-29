@@ -10,9 +10,9 @@ healthy.
 The test that matters here is the 503 one. A healthcheck that only ever
 returns 200 in tests is the same non-signal as the one it replaced.
 """
+import logging
 from unittest.mock import patch
 
-import pytest
 from sqlalchemy.exc import OperationalError
 
 
@@ -42,21 +42,71 @@ def test_healthz_returns_503_when_the_database_is_unreachable(client, app):
     assert r.get_json()['database'] == 'unreachable'
 
 
-def test_healthz_does_not_leak_the_connection_string(client):
-    """A 503 body is public. It must not carry host, user, or password."""
-    from models import db
+SECRETS = ('hunter2', 'dpg-secret-host', 'postgresql+psycopg')
 
-    boom = OperationalError(
+
+def _dsn_bearing_failure():
+    """An OperationalError that renders the connection it failed on.
+
+    psycopg does exactly this, which is the whole problem: `str(e)` on a
+    connection failure contains user, password and host.
+    """
+    return OperationalError(
         'SELECT 1', {},
         Exception('could not connect to postgresql+psycopg://'
                   'teacherbot:hunter2@dpg-secret-host/teacherbot'),
     )
-    with patch.object(db.session, 'execute', side_effect=boom):
+
+
+def test_healthz_does_not_leak_the_connection_string(client):
+    """A 503 body is public. It must not carry host, user, or password."""
+    from models import db
+
+    with patch.object(db.session, 'execute', side_effect=_dsn_bearing_failure()):
         r = client.get('/healthz')
 
     body = r.get_data(as_text=True)
-    for secret in ('hunter2', 'dpg-secret-host', 'postgresql+psycopg'):
+    for secret in SECRETS:
         assert secret not in body
+
+
+def test_healthz_does_not_leak_the_connection_string_into_logs(client, caplog):
+    """The half I missed the first time.
+
+    The original version asserted the DSN stayed out of the response body
+    and then interpolated the exception straight into `logger.error`. Logs
+    are shipped to third parties as a matter of course, so that is the same
+    leak through a quieter hole. Only the exception type is logged now.
+    """
+    from models import db
+
+    with caplog.at_level(logging.ERROR):
+        with patch.object(db.session, 'execute',
+                          side_effect=_dsn_bearing_failure()):
+            client.get('/healthz')
+
+    logged = '\n'.join(r.getMessage() for r in caplog.records)
+    assert logged, 'the failure was not logged at all — it must be'
+    for secret in SECRETS:
+        assert secret not in logged
+    # Still useful: the type distinguishes DNS failure from auth rejection.
+    assert 'OperationalError' in logged
+
+
+def test_healthz_rolls_back_the_failed_session(client):
+    """A failed execute poisons the request-scoped session.
+
+    Without the rollback, anything later in the same request raises
+    InvalidRequestError and the real cause is buried.
+    """
+    from models import db
+
+    with patch.object(db.session, 'execute',
+                      side_effect=_dsn_bearing_failure()):
+        with patch.object(db.session, 'rollback') as rollback:
+            client.get('/healthz')
+
+    rollback.assert_called_once()
 
 
 def test_healthz_needs_no_login(client):
