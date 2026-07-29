@@ -2,7 +2,8 @@
 
 This document describes how `teacherbot` is deployed on Render and how to
 operate it. The deploy was originally provisioned by a one-time bootstrap
-procedure documented in `docs/historical/plans/2026-05-16-render-deployment.md`.
+procedure documented in
+`../docs/historical/plans/2026-05-16-render-deployment.md`.
 
 ## Service summary
 

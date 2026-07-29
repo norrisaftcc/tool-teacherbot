@@ -346,7 +346,10 @@ reopened.
 
 ## Backlog
 
-Each row carries its evidence and links to its issue. B11-B13 share one thread.
+Each row carries its evidence. A row that has been filed links its issue; a row
+marked **unfiled** has not been, and filing it is the next action on it — this
+register is the tracking of last resort, not a substitute for the issue. B11-B13
+share one thread.
 
 | # | Item | Evidence |
 |---|---|---|
@@ -363,5 +366,5 @@ Each row carries its evidence and links to its issue. B11-B13 share one thread.
 | [B11](https://github.com/norrisaftcc/tool-teacherbot/issues/33) | **`.DS_Store` is tracked** at the root and in `design/`. `.gitignore` covers only the latter, which is inert since it is already tracked. | `.gitignore:219` |
 | [B12](https://github.com/norrisaftcc/tool-teacherbot/issues/33) | **Flask-Login is vestigial.** Initialised, `load_user` returns `None`, auth is entirely session-based. Either use it or drop the dependency. | `system1-flask-chat/app.py` |
 | [B13](https://github.com/norrisaftcc/tool-teacherbot/issues/33) | **`design/system1/*.jsx` are not wired into the app** and reference a `terminal.css` that no longer exists. | `docs/design/design-guidelines.md` |
-| B14 | **Moving a session between a local workstation and the cloud, when only one of the two can reach the deploy target.** Tabled explicitly by the course lead. This session is the first concrete instance: planning ran in a cloud container that cannot reach `api.render.com` (403 at the egress proxy) or port 5432, so every Render action had to be authored here and executed elsewhere. There is no mechanism for handing partial state across that boundary — the plan file and the git branch are doing it by hand. Recorded so it is not re-discovered a third time. | this session; `curl https://api.render.com/v1/services` → `CONNECT tunnel failed, response 403` |
-| B15 | **Backfill `Rejected:` lines on the eleven frozen entries that predate the rule** — K1-K7, K10, K14, K15, K16. Recover the alternatives from the ADRs that recorded them, not from recollection. An entry whose ADR names no alternative gets *"Rejected: nothing; no alternative was raised"* rather than an invented one. | `docs/registry/KEEP.md` header rule 3; `docs/adr/` |
+| B14 *(unfiled)* | **Moving a session between a local workstation and the cloud, when only one of the two can reach the deploy target.** Tabled explicitly by the course lead. This session is the first concrete instance: planning ran in a cloud container that cannot reach `api.render.com` (403 at the egress proxy) or port 5432, so every Render action had to be authored here and executed elsewhere. There is no mechanism for handing partial state across that boundary — the plan file and the git branch are doing it by hand. Recorded so it is not re-discovered a third time. | this session; `curl https://api.render.com/v1/services` → `CONNECT tunnel failed, response 403` |
+| B15 *(unfiled)* | **Backfill `Rejected:` lines on the eleven frozen entries that predate the rule** — K1-K7, K10, K14, K15, K16. Recover the alternatives from the ADRs that recorded them, not from recollection. An entry whose ADR names no alternative gets *"Rejected: nothing; no alternative was raised"* rather than an invented one. | `docs/registry/KEEP.md` header rule 3; `docs/adr/` |
