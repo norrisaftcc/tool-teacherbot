@@ -50,7 +50,7 @@ def test_csc114_login_roundtrip_with_original_passcode(client, both_contexts):
     assert r.status_code == 200
 
 
-def test_csc134_login_roundtrip_with_placeholder_passcode(client, both_contexts):
+def test_csc134_login_roundtrip_with_cohort_passcode(client, both_contexts):
     from auth import SKINS
     r = _login(client, 'csc134', SKINS['csc134']['password'])
     assert r.status_code == 302

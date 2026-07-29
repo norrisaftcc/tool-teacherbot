@@ -1,6 +1,6 @@
 # ADR-0001: Serve /csc114 and /csc134 as skins; run CSC 134 on Haiku
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-07-25
 - **Deciders:** norrisaftcc (product), Claude Code (implementation)
 

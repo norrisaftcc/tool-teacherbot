@@ -49,7 +49,18 @@ def test_csc114_skin_present():
 def test_csc134_skin_present_on_haiku():
     assert 'csc134' in SKINS
     assert SKINS['csc134']['model'] == 'claude-haiku-4-5-20251001'
-    assert SKINS['csc134']['password']  # must be set (placeholder OK)
+    assert SKINS['csc134']['password']
+
+
+def test_csc134_passcode_is_not_a_placeholder():
+    """The registry shipped `csc134-tbd` to production for three days.
+
+    A placeholder passcode is not a broken build — the app serves it happily
+    — so nothing failed and nothing complained. This is the check that turns
+    "we forgot" into a red suite.
+    """
+    assert SKINS['csc134']['password'] != 'csc134-tbd'
+    assert 'tbd' not in SKINS['csc134']['password'].lower()
 
 
 def test_authenticate_skin_valid():

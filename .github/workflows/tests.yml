@@ -1,0 +1,36 @@
+name: tests
+
+# Until now every test in this repo was run by hand, while `main` auto-deploys
+# to production on push (render.yaml, autoDeploy: true). A red suite shipped.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          # Matches system1-flask-chat/.python-version, which is what Render
+          # reads (rootDir is system1-flask-chat, so the repo-root runtime.txt
+          # is invisible to it). CI and production must agree on this.
+          python-version-file: system1-flask-chat/.python-version
+          cache: pip
+          cache-dependency-path: system1-flask-chat/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r system1-flask-chat/requirements.txt
+
+      - name: Run both suites
+        # No ANTHROPIC_API_KEY needed. claude_handler builds its client at
+        # import time, but Anthropic(api_key=None) constructs fine — only
+        # calls fail, and every test mocks them. Do not add the secret here:
+        # a workflow that can reach the API is a workflow that can spend on it.
+        run: python -m pytest -q

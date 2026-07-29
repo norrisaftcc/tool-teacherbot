@@ -57,9 +57,21 @@ form.addEventListener('submit', async (e) => {
             bubble.textContent = event.error;
             bubble.closest('.msg').classList.add('msg--error');
           } else if (event.done) {
-            // Snap to rendered Markdown on completion
+            // Snap to rendered Markdown on completion.
+            //
+            // marked comes from a third-party CDN (chat.html). If that
+            // request fails, `marked` is undefined and this line throws
+            // inside the read loop — which the outer catch turns into
+            // "Network error. Please try again." over an answer that
+            // arrived intact, and skips the token-remaining update. Losing
+            // Markdown formatting is a cosmetic degradation; losing the
+            // answer to a misleading error is not.
             bubble.classList.remove('cursor');
-            bubble.innerHTML = marked.parse(fullText);
+            if (typeof marked !== 'undefined' && marked.parse) {
+              bubble.innerHTML = marked.parse(fullText);
+            } else {
+              bubble.textContent = fullText;
+            }
             log.scrollTop = log.scrollHeight;
             history.push({ role: 'assistant', content: fullText });
             if (tokenEl && event.tokens_remaining !== null) {

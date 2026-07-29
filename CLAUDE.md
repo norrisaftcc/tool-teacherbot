@@ -1,82 +1,93 @@
 # AlgoCratic TA Systems
 
-Dual-system AI-assisted capstone education platform. System 1 (Flask chat) is **deployed and live**. System 2 (CLI distribution) is not yet started.
+A Flask AI teaching assistant, live on Render, serving one **skin** per cohort.
+System 2 (the CLI distribution in the original plan) was never started and its
+directory does not exist — see `docs/historical/`.
 
-## Current state
+## Read these first
 
-| System | Status | Notes |
-|---|---|---|
-| **System 1** (`system1-flask-chat/`) | ✅ Live on Render | https://teacherbot-6yut.onrender.com/ |
-| **System 2** (`system2-code-distribution/`) | ⛔ Not started | Directory does not exist yet |
-| `shared/` | ⛔ Not created | No cross-system code exists yet |
+| File | Why |
+|---|---|
+| `docs/registry/KEEP.md` | **Decision register.** What is frozen, what is still negotiating, and the backlog. Start here. |
+| `docs/adr/` | Why the code is shaped this way. 0001-0003 Accepted, 0004-0005 Proposed. |
+| `system1-flask-chat/DEPLOY.md` | Operator runbook — env vars, redeploy, logs, rollback, suspend. |
 
 ## What's where
 
 | Path | Purpose |
 |---|---|
-| `system1-flask-chat/` | Flask app: group login → Claude API with per-group context injection → conversation log |
-| `system1-flask-chat/DEPLOY.md` | **Operator runbook** — env vars, redeploy, logs, rollback, suspend |
-| `system1-flask-chat/auth.py` | Hardcoded group credentials (group1–group5) — alpha-grade |
-| `system1-flask-chat/context/group*_context.md` | Per-group project briefs injected into Claude prompts (placeholders — instructor fills in) |
-| `docs/superpowers/specs/2026-05-16-render-deployment-design.md` | Current deploy spec |
-| `docs/superpowers/plans/2026-05-16-render-deployment.md` | Step-by-step deploy procedure (idempotent) |
-| `render.yaml` | Blueprint, kept in sync with what was deployed |
-| `runtime.txt` | **NOT read by Render** — see Gotchas below |
-| `SYSTEM1_CLAUDE.md` / `SYSTEM2_CLAUDE.md` | Historical: launch guides for the original two-instance development plan |
-| `TA_SYSTEMS_PARALLEL_PLAN.md` | Historical: original 25KB technical spec |
-| `docs/superpowers/specs/2026-05-13-*` and `plans/2026-05-13-*` | **SUPERSEDED** — kept for paper trail |
+| `system1-flask-chat/auth.py` | `SKINS` registry — passcode, model, persona, corpus window per cohort. Also the path-traversal/symlink guard. |
+| `system1-flask-chat/routes.py` | Root picker + `skin_blueprint(slug)` factory. Login, chat, SSE stream, admin, per skin. |
+| `system1-flask-chat/claude_handler.py` | Prompt composition, 1h ephemeral cache block, `_usage_total` token accounting. |
+| `system1-flask-chat/context/` | Personas, cohort headers, teaching notes, and vendored corpora. |
+| `scripts/sync_course_corpus.py` | Vendors a course repo into `context/<slug>/` per a manifest. |
+| `scripts/eval_persona.py` | Runs a behaviour bank against the real composed prompt. |
+| `scripts/export_group_transcripts.py` | Exports a cohort's transcripts before its skin is unregistered (K12). |
+| `evals/csc134/m0.yaml` | The only behaviour bank so far. |
+| `docs/historical/` | Superseded planning docs. Bannered, do not act on them. |
 
-## How to work with the live service
+## Live service
 
-- **Push to `main` triggers auto-deploy** (verified, ~1 min to live)
-- Service ID: `srv-d84ha1og4nts73f73rng` · DB ID: `dpg-d84h9epkh4rs73d70pgg-a` · region `virginia` · free plan
-- For deploys, env vars, logs, rollback: read `system1-flask-chat/DEPLOY.md` first
-- Render CLI workspace: `render workspace set tea-d81rjp0sfn5c738tl430` (one-time per shell)
+- **Push to `main` auto-deploys** (~1 min to live), `rootDir: system1-flask-chat`
+- Service `srv-d84ha1og4nts73f73rng` · DB `dpg-d84h9epkh4rs73d70pgg-a` · virginia · free plan
+- Render CLI workspace: `render workspace set tea-d81rjp0sfn5c738tl430` (once per shell)
 
-## Architecture
+## Commands
 
-```
-System 1 (deployed):
-  Flask + gunicorn  ──►  Anthropic API
-       │
-       └──►  Render Postgres (teacherbot-db)
-              ├── Group, Conversation, Message tables
-              └── db.create_all() on startup (no migrations framework)
-
-System 2 (not built):
-  setup.py → per-group folders (API key + spend_cap.json + CLAUDE.md)
+```bash
+python -m pytest -q                    # both suites, from the repo root
+python scripts/eval_persona.py --skin csc134 --module m0 --backend anthropic
+python scripts/sync_course_corpus.py --manifest scripts/csc134_manifest.yaml
 ```
 
 ## Gotchas
 
-### Repo-level
+### Schema — read before touching models.py
 
-- **`runtime.txt` at the repo root is invisible to Render** because `rootDir: system1-flask-chat`. The Python version is pinned via `system1-flask-chat/.python-version`. Don't add a redundant `runtime.txt` inside the subdir — pick one mechanism.
-- **The `system2-code-distribution/` and `shared/` directories don't exist yet.** Don't reference them as if they do.
-- **`SYSTEM1_CLAUDE.md` and `SYSTEM2_CLAUDE.md` are not root CLAUDE.md files** — they were intended to be copied into subdirs at instance-launch time. System 1's CLAUDE.md derivation already happened; treat `SYSTEM1_CLAUDE.md` as historical.
+**`db.create_all()` creates missing tables and nothing else.** There is no
+Alembic and no Flask-Migrate. Adding a **table** is free on the next deploy.
+Adding a **column to an existing table** silently does nothing on deploy, and
+then every query naming it raises `UndefinedColumn` in production. Tests cannot
+catch it — they run on in-memory SQLite, which builds the schema fresh each run.
+This is frozen entry K6, and ADR-0004 is designed around it.
 
-### Render-level (live with these)
+### Repo
 
-- **Same-region Postgres uses the internal connection string**, not the external one. External requires TLS handshake that flakes from within Render's network. Get the right one from `GET /v1/postgres/<id>/connection-info → internalConnectionString`.
-- **Render CLI v2.17.0 cannot create Postgres or delete services.** Both gaps require the REST API (`POST /v1/postgres`, `DELETE /v1/services/<id>`). The CLI is fine for service create/update/restart/deploys/logs.
-- **Render CLI `--output json` writes ANSI escape codes when stdout isn't a TTY**, breaking jq. Use REST API directly when scripting.
-- **Free-tier Postgres has a 30-day rolling expiry** and the workspace allows one free Postgres at a time. Don't try to create a second one without deleting the first.
-- **Blueprint apply via dashboard requires payment info on file** (workspace eligibility), even for free-tier resources. The CLI+REST path doesn't.
+- **Root `runtime.txt` is invisible to Render** because `rootDir: system1-flask-chat`. The version comes from `system1-flask-chat/.python-version`. Don't add a second mechanism.
+- **`pytest.ini` needs `--import-mode=importlib`.** Both test suites are packages named `tests`; without it, collection dies on duplicate module names.
+- **Two test suites, two import roots.** `pytest.ini` handles both — run `pytest` from the repo root.
 
-### App-level (known alpha-grade issues)
+### Prompt composition
 
-- Admin auth is `?password=...` query string. Replace with a POST form before classroom use.
-- No CSRF protection. `flask-wtf` is not in requirements.
-- Token-budget enforcement has a race condition (read-modify-write between requests is not atomic).
-- `db.create_all()` runs on every startup; there's no migrations framework.
+- **The corpus is windowed** (ADR-0002): `corpus_index` + one `active_module`. Never load the whole corpus; that is what the window exists to prevent.
+- **Haiku will not cache a prefix under 4096 tokens** — silently, no error. `test_auth.py` guards every csc134 window against that floor, and the thinnest clear it by 163 tokens. Any corpus trimming will trip it, and that is the test doing its job.
+- **`_usage_total` counts cache reads at full weight.** Correct as a token count, wrong as a cost proxy. Don't "fix" it into a cost estimate without deciding K10 first.
+- **Context is reloaded per request, never cached in the session** — a window is tens of KB and the signed cookie limit is 4KB. `test_skins.py` guards this.
+- **The SSE generator body runs after the request context is torn down.** Read anything you need from the app or DB *before* `generate()`.
+
+### Render
+
+- **Same-region Postgres needs the internal connection string.** The external one requires a TLS handshake that flakes from inside Render's network.
+- **Render CLI v2.17.0 cannot create Postgres or delete services.** Use the REST API for those two.
+- **`render --output json` emits ANSI escapes when stdout isn't a TTY**, which breaks jq. Use the REST API when scripting.
+- **Free-tier Postgres has a 30-day rolling expiry**, one per workspace.
+- **Blueprint apply via the dashboard requires payment info on file.** The CLI+REST path doesn't.
+
+### Known open defects
+
+All tracked as issues and indexed in `docs/registry/KEEP.md`. The live ones worth
+knowing before you touch related code: admin auth is a query parameter (#26), no
+CSRF (#27), `increment_tokens` has a read-modify-write race (#28), `marked` is
+unpinned and unhashed (#25), corpus manifests track a moving branch (#24).
 
 ## Tech stack
 
-- **System 1**: Flask 3.x, Flask-SQLAlchemy, Anthropic SDK 0.101.0, psycopg3, gunicorn, Python 3.11.9 on Render free tier
-- **System 2** (planned): Python 3.11+, argparse, pathlib (no external deps by design)
+Flask 3.x, Flask-SQLAlchemy, Anthropic SDK 0.101.0, psycopg3, gunicorn,
+Python 3.11.9, Render free tier.
 
-## Branch / PR conventions
+## Conventions
 
-- Branch names: `system1/feature-name` and (future) `system2/feature-name`
-- Open a PR for non-trivial changes, even when working solo — keeps a reviewable record
-- Direct commits to `main` are acceptable for one-line deploy-blocker fixes (Python pinning, env var corrections); document the why in the commit message and reference the relevant issue
+- **Branch:** `<slug>/feature-name`, e.g. `csc134/pair-assignments-with-modules`.
+- **Open a PR** for non-trivial changes even when solo — it keeps a reviewable record.
+- **Commit bodies explain why, at length**, and name what is uncertain rather than papering over it. Match that register; it is the most valuable documentation in this repo.
+- **A decision that isn't written down doesn't exist.** Frozen and negotiating entries go in `docs/registry/KEEP.md`; anything that constrains the schema or the prompt gets an ADR.

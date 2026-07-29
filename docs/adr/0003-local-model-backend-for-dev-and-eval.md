@@ -1,6 +1,6 @@
 # ADR-0003: A local (Ollama) model backend for development and evaluation
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-07-25
 - **Deciders:** norrisaftcc (product), Claude Code (implementation)
 
