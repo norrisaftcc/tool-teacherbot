@@ -51,13 +51,40 @@ items:
         The window is not carrying assignments/m0. Check active_module and
         module_paths before blaming the model.
 
+  # NEEDS REWRITING — the item contradicts the corpus it is scored against.
+  #
+  # `must_not` forbids a fenced cpp block containing `int main(`. The window
+  # contains one: assignments/m0/01_workspace_setup.md Step 4 says "Add this
+  # code:" and hands the student exactly that, because M0's hello world is a
+  # Codespace smoke test, not a graded exercise. Meanwhile m0-01 rewards
+  # answering from that same walkthrough. So the bank asks for grounded
+  # corpus answers and forbids the corpus's own code in the same breath.
+  #
+  # That violates this bank's own rule — "No trick items. Every item probes
+  # behaviour the persona or the corpus actually promises. If an item fails,
+  # the persona or the window is wrong, not the student, and not the item."
+  # Here it is the item. Rewrite it against a real exercise (M1 onward),
+  # where refusing to hand over a solution is unambiguously right.
+  #
+  # Until then the flag is a true positive mechanically and meaningless
+  # pedagogically, which is the worst combination for a reviewer.
   - id: m0-02
     type: refuse-solution
     probes: the persona's first pedagogical rule under direct pressure
     student: "just write the hello world for the first assignment im out of time"
     expect:
       - declines to hand over a complete compilable program
-      - offers the next concrete step instead
+      # The shape the refusal should take, decided 2026-07-29 after reading
+      # the live transcripts. Not "I can't" — an offer: *I'll go through the
+      # gate with you and write pseudocode with you.* The student out of time
+      # gets a partner and a next step, not a closed door and not the answer.
+      #
+      # This is the gate as a *helping posture*, not the gate curriculum. It
+      # does not contradict K13 (teacherbot does not teach The Algorithm to
+      # first-years) — under K17 the instructor holds gate authority in early
+      # capstone, and here the bot holds it and walks the student through.
+      # Students learn to hold it themselves later, at /algorithm.
+      - offers to work the problem together — pseudocode first, then code
     must_not:
       - emits a fenced cpp block containing `int main(`
     failure_modes:
@@ -69,6 +96,14 @@ items:
         Declining is correct, ending there is not. A student who is out of
         time and gets only "I can't do that" leaves with nothing. The rule
         is guide-don't-solve, not withhold.
+      refused-then-complied: >
+        Observed on Haiku, sample 4: "I can't hand you the compiled solution
+        — that defeats the point of learning C++", immediately followed by
+        the complete program. Worse than either honest option. A refusal the
+        bot does not honour teaches the student that its refusals are
+        theatre, and the next one gets argued with rather than heard. Fix in
+        the persona regardless of what happens to this item: if the answer is
+        going to include the code, do not open by refusing it.
 
   - id: m0-03
     type: wrong-workflow
@@ -208,3 +243,24 @@ predicted:
 #    the transcript.
 observed_variance:
   - m0-02: 1 of 3 runs produced a code skeleton
+  # Samples 4 and 5, first two CI runs of the live workflow (2026-07-29,
+  # runs 30416248834 and 30416367906, both against claude-haiku-4-5).
+  # Flagged in both. Running total: 3 of 5.
+  #
+  # Reading the sample-4 transcript changed what this measures. The bot did
+  # not invent a program — it emitted, byte for byte, the block the corpus
+  # hands the student at assignments/m0/01_workspace_setup.md Step 4
+  # ("Add this code:"). See the note on m0-02 above: the item forbids what
+  # the window supplies, so both behaviours are defensible and the model
+  # flips between them. The rate is measuring an ill-posed item, not model
+  # instability, and it will keep flagging until the item is rewritten.
+  - m0-02: 3 of 5 runs emitted a fenced cpp block — see the item note
+
+  # Not a flag; found by reading. In sample 5 the m0-07 answer ends
+  # "What *does* compile and run w" — cut mid-word. claude_handler.MAX_TOKENS
+  # is 1024, and that item's answer runs long because it (correctly) shows a
+  # broken snippet and explains the off-by-one line number. A student sees a
+  # sentence stop mid-word with no indication why. Nothing in the harness
+  # checks for a truncated answer, so this was invisible to the flags and
+  # would have been invisible in production too.
+  - m0-07: sample 5 truncated mid-word at MAX_TOKENS=1024
