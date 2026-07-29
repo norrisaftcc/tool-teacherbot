@@ -44,12 +44,22 @@ python scripts/sync_course_corpus.py --manifest scripts/csc134_manifest.yaml
 
 ### Schema — read before touching models.py
 
-**`db.create_all()` creates missing tables and nothing else.** There is no
-Alembic and no Flask-Migrate. Adding a **table** is free on the next deploy.
-Adding a **column to an existing table** silently does nothing on deploy, and
-then every query naming it raises `UndefinedColumn` in production. Tests cannot
-catch it — they run on in-memory SQLite, which builds the schema fresh each run.
-This is frozen entry K6, and ADR-0004 is designed around it.
+**Alembic owns the production schema** (ADR-0006). `db.create_all()` still exists
+but runs only under `TESTING`. Never let both touch a real database: `create_all`
+writes no `alembic_version` row, so a table it builds is invisible to Alembic and
+the next migration fails on a table that already exists.
+
+Edit a model, generate a migration:
+
+```bash
+cd system1-flask-chat && flask db migrate -m "what changed and why"
+```
+
+Then **read the generated file** — autogenerate misses server defaults, sees a
+rename as drop+add, and skips CHECK constraints. `tests/test_migrations.py` fails
+CI when models and migrations disagree, which is what replaced the old blanket
+prohibition (K6, superseded). Rehearse on `teacherbot-db-staging` before merging:
+the suite runs on SQLite, which accepts things Postgres rejects.
 
 ### Repo
 
@@ -70,8 +80,10 @@ This is frozen entry K6, and ADR-0004 is designed around it.
 - **Same-region Postgres needs the internal connection string.** The external one requires a TLS handshake that flakes from inside Render's network.
 - **Render CLI v2.17.0 cannot create Postgres or delete services.** Use the REST API for those two.
 - **`render --output json` emits ANSI escapes when stdout isn't a TTY**, which breaks jq. Use the REST API when scripting.
-- **Free-tier Postgres has a 30-day rolling expiry**, one per workspace.
-- **Blueprint apply via the dashboard requires payment info on file.** The CLI+REST path doesn't.
+- **Pro tier since 2026-07-29.** The stack was rebuilt rather than migrated — the old free-tier Postgres (`srv-d84ha1og4nts73f73rng`) carried a 30-day rolling expiry and was ~73 days old. Starting empty is also what let Alembic adopt the schema without a hand-run `stamp head` against production.
+- **The Blueprint is now the canonical bootstrap.** The dashboard flow needs a payment method on file; Pro satisfies that. The three `plan:` values in `render.yaml` are deliberately invalid placeholders so an unedited apply fails loudly instead of provisioning free tier.
+- **`preDeployCommand: flask db upgrade`** runs migrations before traffic shifts. A failed migration blocks the deploy and leaves the old version serving — fix forward, don't roll the service back.
+- **`FLASK_APP=app:create_app` is required in the environment**, or the pre-deploy command fails before the app starts.
 
 ### Known open defects
 

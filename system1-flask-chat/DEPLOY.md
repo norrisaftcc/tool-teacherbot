@@ -9,13 +9,21 @@ procedure documented in `docs/superpowers/plans/2026-05-16-render-deployment.md`
 | Property | Value |
 |---|---|
 | Service name | `teacherbot` |
-| Database name | `teacherbot-db` |
+| Database name | `teacherbot-db` (+ `teacherbot-db-staging` for migration rehearsal) |
 | Region | Virginia (us-east) |
-| Plan | free (web + DB) |
+| Plan | Pro (web + DB) |
 | Branch deployed | `main` |
 | Root directory | `system1-flask-chat` |
 | Auto-deploy | enabled (every push to `main`) |
+| Pre-deploy | `flask db upgrade` — migrations run before traffic shifts |
 | Service URL | recorded in tracking issue at first deploy |
+
+> **Rebuilt on Pro tier, 2026-07-29.** The original free-tier stack
+> (`srv-d84ha1og4nts73f73rng`) was written off rather than migrated. Free
+> Postgres carries a 30-day rolling expiry and that instance was ~73 days old,
+> so it had most likely already lapsed. Starting from an empty database is also
+> what let Alembic adopt the schema without a hand-run `flask db stamp head`
+> against production — see ADR-0006.
 
 ## Required environment variables
 
@@ -24,7 +32,8 @@ procedure documented in `docs/superpowers/plans/2026-05-16-render-deployment.md`
 | `ANTHROPIC_API_KEY` | Instructor's key from https://console.anthropic.com/. Starts with `sk-ant-`. |
 | `FLASK_SECRET_KEY` | Generated random hex: `python3 -c "import secrets; print(secrets.token_hex(32))"`. Rotate on suspected leak. |
 | `ADMIN_PASSWORD` | Chosen string. Gates `/<slug>/admin?password=…` per skin (e.g. `/csc114/admin?password=…`). Alpha-grade auth — replace before public use. |
-| `DATABASE_URL` | Connection string from the `teacherbot-db` instance. `app.py:18-21` rewrites `postgres://` and `postgresql://` to `postgresql+psycopg://`. |
+| `DATABASE_URL` | Connection string from the `teacherbot-db` instance. Use the **internal** one — the external requires a TLS handshake that flakes from inside Render's network. `app.py` rewrites `postgres://` and `postgresql://` to `postgresql+psycopg://`. |
+| `FLASK_APP` | `app:create_app`. Required by `flask db upgrade` in the pre-deploy command; without it the deploy fails before the app starts. |
 
 **`FLASK_SECRET_KEY` and `ADMIN_PASSWORD` are now hard requirements.** They
 used to fall back to `dev-secret` and `admin`, so a service missing either
@@ -56,6 +65,62 @@ curl -s -X PUT \
   -d '[{"key":"ADMIN_PASSWORD","value":"new-value"}]' \
   https://api.render.com/v1/services/<srv-id>/env-vars
 ```
+
+## Schema changes
+
+The production schema is owned by Alembic (ADR-0006). `db.create_all()` still
+exists but runs only under `TESTING` — the two must never both touch a real
+database, because `create_all` writes no `alembic_version` row and the next
+migration then fails on a table that already exists.
+
+### Making one
+
+```bash
+cd system1-flask-chat
+# after editing models.py
+flask db migrate -m "what changed and why"
+# read the generated file before committing it — autogenerate misses
+# server defaults, renames (it sees drop+add), and CHECK constraints
+flask db upgrade && flask db downgrade && flask db upgrade   # round-trip
+flask db check                                               # no drift
+```
+
+CI runs `tests/test_migrations.py`, which applies the migrations to a real
+database and diffs the result against `db.metadata`. A model changed without a
+migration is a red build, not a production incident.
+
+### Rehearsing on staging — do this before merging
+
+The test suite runs on SQLite, which accepts things Postgres rejects: type
+changes, constraints added against existing data, a non-null column on a
+populated table. A green suite is not evidence that a migration survives real
+data.
+
+```bash
+# Internal connection string for teacherbot-db-staging
+export DATABASE_URL='<staging-internal-url>'
+export FLASK_APP=app:create_app
+cd system1-flask-chat && flask db upgrade
+
+python3 -c "
+from sqlalchemy import create_engine, inspect
+import os
+print(sorted(inspect(create_engine(os.environ['DATABASE_URL'].replace(
+    'postgres://', 'postgresql+psycopg://', 1))).get_table_names()))"
+# expect: alembic_version, conversations, groups, messages
+```
+
+Only then merge to `main`. Auto-deploy runs `flask db upgrade` as its pre-deploy
+step; if the migration fails, the deploy is blocked and the running version keeps
+serving.
+
+### If a migration fails in pre-deploy
+
+The deploy stops and the previous version stays live — that is the intended
+behaviour, so there is no outage to race. Fix forward: correct the migration,
+push, let the next deploy run it. Do not roll the *service* back to escape a bad
+migration; the schema is what needs reverting, and `flask db downgrade` against
+the database is the tool for that.
 
 ## Common operations
 
@@ -95,7 +160,7 @@ render deploys rollback <srv-id> --deploy-id <dep-...>
 ### Suspend / resume the service
 
 ```bash
-# Suspend (free tier; DB is preserved):
+# Suspend (the database is preserved; on Pro it keeps billing):
 curl -s -X POST -H "Authorization: Bearer $RENDER_API_KEY" \
   https://api.render.com/v1/services/<srv-id>/suspend
 
@@ -112,22 +177,48 @@ render restart <srv-id>
 
 ## Known alpha-grade issues
 
-These are documented in `../current-status-report.md` and are out of scope for
-the initial deploy. File issues to track them before any production use:
+All tracked as issues and indexed in `../docs/registry/KEEP.md`. This list used
+to say "file issues to track them before any production use" and nobody did for
+two months, which is why the register exists.
 
-- Admin auth is `/<slug>/admin?password=...` query string. Replace with a POST login form.
-- No CSRF protection. `flask-wtf` is not in `requirements.txt`.
-- Token-budget enforcement has a race condition (read-modify-write between
-  requests is not atomic).
-- `db.create_all()` runs on every startup; there is no migrations framework.
+- Admin auth is `/<slug>/admin?password=...` query string — #26.
+- No CSRF protection; `flask-wtf` is not in `requirements.txt` — #27.
+- `increment_tokens` has a read-modify-write race — #28.
+- `marked` is loaded from a CDN unpinned and unhashed — #25.
+- Corpus manifests track a moving branch — #24.
 
-## Re-creating the service from scratch
+Resolved since: `db.create_all()` no longer runs in production (ADR-0006), and
+the secrets no longer have fallbacks.
 
-If `teacherbot` ever needs to be recreated, the canonical procedure is in
-`../docs/superpowers/plans/2026-05-16-render-deployment.md`. The `render.yaml`
-Blueprint at the repo root is kept in sync with the deployed state and is also
-a valid (though manual) starting point if you prefer the "New Blueprint" flow
-in the Render dashboard — note that the dashboard requires a payment method
-on file before it will apply a Blueprint, even for free-tier resources.
+## Re-creating the stack from scratch
+
+**The Blueprint is now the canonical path.** Applying it from the dashboard
+requires a payment method on file, which is why the original bootstrap went
+through CLI + REST instead; Pro tier satisfies that, so "New Blueprint" against
+`render.yaml` reproduces the web service, the database, and staging in one go.
+
+Before applying, replace the three `plan:` placeholders in `render.yaml` with
+real paid plan identifiers. They are deliberately invalid so an unedited apply
+fails loudly — leaving the database as `free` would silently re-inherit the
+30-day expiry this rebuild exists to escape.
+
+Then, once:
+
+```bash
+# Set the three sync:false secrets in the dashboard, then confirm the schema
+# built. On a fresh database this is the first `flask db upgrade`; no
+# `stamp head` is needed, which is the point of rebuilding rather than migrating.
+render logs --resources <srv-id> | grep -i alembic
+curl -sS -o /dev/null -w '%{http_code}\n' https://<service>.onrender.com/
+```
+
+The CLI + REST procedure in
+`../docs/superpowers/plans/2026-05-16-render-deployment.md` still works and is
+the fallback if the Blueprint flow is unavailable.
+
+The real smoke test after any deploy is a `/csc134/` login: `do_login` queries
+the database without exception handling, so it is the path that fails loudly if
+the schema or connection string is wrong. `/` renders without touching the
+database and will happily return 200 over a broken one.
 
 <!-- deploy verified 2026-05-17T01:46:44Z -->

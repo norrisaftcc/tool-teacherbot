@@ -75,6 +75,10 @@ model capability, not prompt content.
 
 ### K6 — No schema change to an existing table until Alembic lands
 
+> **Superseded by ADR-0006 (2026-07-29).** Alembic landed. Kept in full because
+> ADR-0004 was designed around this constraint and reads oddly without it, and
+> because the register's rule is that frozen entries are superseded, not edited.
+
 `db.create_all()` creates missing tables and does nothing else. A new table is
 free on the next deploy. A new column on an existing table silently does nothing
 and then raises `UndefinedColumn` in production — on a service that auto-deploys
@@ -84,6 +88,31 @@ the schema fresh every run.
 *Evidence:* `system1-flask-chat/app.py` (`db.create_all()` at startup);
 `system1-flask-chat/requirements.txt` (no Alembic, no Flask-Migrate);
 `system1-flask-chat/tests/conftest.py:7`.
+
+*What changed:* Flask-Migrate is now a runtime dependency, `create_all()` is
+gated on `TESTING`, and `tests/test_migrations.py` fails CI when a model and the
+migrations disagree. The prohibition existed because nothing could *detect* the
+mistake; that detector now exists. See K14 and K15.
+
+### K14 — Alembic owns the production schema; `create_all` is for tests only
+
+They must never both run against a real database. `create_all()` writes no
+`alembic_version` row, so a table it builds is invisible to Alembic, and the next
+migration fails on a table that already exists. Migrations are applied by
+`preDeployCommand: flask db upgrade`, never by the app at boot.
+
+*Evidence:* `system1-flask-chat/app.py` (the `TESTING` gate);
+`system1-flask-chat/tests/test_migrations.py`; ADR-0006 §2, §3.
+
+### K15 — A migration is rehearsed on staging before it reaches `main`
+
+The suite runs on SQLite, which accepts things Postgres rejects — type changes,
+constraints added against existing data, a non-null column on a populated table.
+`test_migrations.py` proves a migration matches the models; only a Postgres run
+proves it survives real data. `teacherbot-db-staging` exists for exactly this and
+is not a general-purpose production clone.
+
+*Evidence:* ADR-0006 §5; `render.yaml`.
 
 ### K7 — Secrets have no fallbacks
 
@@ -139,12 +168,19 @@ Position taken in ADR-0005: the slot becomes the Prompt Wizard under the slug
 
 ### K12 — Retention of the CSC 114 pilot rows
 
+> **Closed, moot (2026-07-29).** The course lead ruled the old free-tier
+> resources written off. That database was provisioned around 2026-05-17 against
+> a 30-day expiry, so it had most likely lapsed already; it held demo traffic and
+> a finished pilot. There is nothing left to export, so this no longer blocks the
+> ADR-0005 repoint.
+
 Once no skin serves `csc114`, `/csc114/admin` stops existing and the pilot's
 transcripts are unreachable — the `Group` row stays in Postgres with no route to
-it. Default is *retain, unused*; dropping is cheap. The course lead decides,
-because it is their pilot data.
+it.
 
-*Status:* open. Blocks the ADR-0005 repoint — export first. Tracked in #22.
+*Status:* closed. #22 closed as not-planned.
+`scripts/export_group_transcripts.py` stays — the next cohort to be retired will
+want it, and it now has a rehearsed path.
 
 ### K13 — Whether teacherbot teaches The Algorithm, and to whom
 
@@ -164,7 +200,7 @@ Each row carries its evidence and links to its issue. B11-B13 share one thread.
 
 | # | Item | Evidence |
 |---|---|---|
-| [B1](https://github.com/norrisaftcc/tool-teacherbot/issues/23) | **Alembic / Flask-Migrate**, before the capstone produces transcripts anyone intends to grade. K6's escape hatch works once. | K6 |
+| ~~[B1](https://github.com/norrisaftcc/tool-teacherbot/issues/23)~~ | ~~**Alembic / Flask-Migrate**~~ — **done**, ADR-0006. Landed before the capstone rather than after, and on a fresh database so the baseline needed no hand-run `stamp`. | ADR-0006 |
 | [B2](https://github.com/norrisaftcc/tool-teacherbot/issues/24) | **SHA-pin the corpus sync.** `fetch_upstream` uses `git clone --branch`, which cannot take a SHA, so every manifest tracks a moving branch and no provenance SHA is recorded. Prerequisite for ADR-0005. | `scripts/sync_course_corpus.py:33-38` |
 | [B3](https://github.com/norrisaftcc/tool-teacherbot/issues/25) | **Pin `marked` and add SRI**, or vendor it into `static/js/`. Currently unpinned and unhashed, feeding `innerHTML`. Could not be done from the dev container — jsdelivr is unreachable through the proxy, and pinning to an unverified version would break rendering. | `system1-flask-chat/templates/chat.html:162`; `static/js/chat.js` |
 | [B4](https://github.com/norrisaftcc/tool-teacherbot/issues/26) | **Admin auth is a URL query parameter.** `?password=…` lands in Render access logs and browser history. Replace with a POST form. Deferred by issue #2 and never tracked. | `system1-flask-chat/routes.py:271` |

@@ -1,12 +1,14 @@
 import os
 from flask import Flask
 from flask_login import LoginManager
+from flask_migrate import Migrate
 from dotenv import load_dotenv
 from models import db
 
 load_dotenv()
 
 login_manager = LoginManager()
+migrate = Migrate()
 
 REQUIRED_SECRETS = ('SECRET_KEY', 'ADMIN_PASSWORD')
 
@@ -69,6 +71,7 @@ def create_app(test_config=None):
 
     # Extensions
     db.init_app(app)
+    migrate.init_app(app, db)
     login_manager.init_app(app)
     login_manager.login_view = 'main.index'
 
@@ -86,9 +89,25 @@ def create_app(test_config=None):
     for slug in SKINS:
         app.register_blueprint(skin_blueprint(slug), url_prefix=f'/{slug}')
 
-    # Create tables
-    with app.app_context():
-        db.create_all()
+    # Schema.
+    #
+    # Tests only. Production schema is owned by Alembic (ADR-0006) and applied
+    # by `flask db upgrade` as a pre-deploy step, never by the app at boot.
+    #
+    # These two must not both run against a real database. `create_all()`
+    # builds whatever the models currently declare and writes no
+    # `alembic_version` row, so a table it created is invisible to Alembic —
+    # the next migration then tries to create it again and the deploy fails on
+    # a table that "already exists". Keeping it behind TESTING is what stops
+    # the two mechanisms from disagreeing.
+    #
+    # The suite depends on this: the `app` fixture in tests/conftest.py never
+    # calls create_all itself, so every route test would hit an empty
+    # in-memory database without it. Running migrations per test would be
+    # correct and far slower, for a schema the migration tests already check.
+    if app.config.get('TESTING'):
+        with app.app_context():
+            db.create_all()
 
     return app
 
