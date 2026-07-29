@@ -8,18 +8,26 @@
 // because a leading `>` is markdown syntax. Both were measured, not
 // reasoned about, which is the whole point of this file.
 //
+// It loads the VENDORED bundle, not the npm package. Those are different
+// builds of the same version: `import { marked } from 'marked'` resolves the
+// ESM entrypoint, while the browser executes static/js/marked.umd.js. Testing
+// the one students do not run is a guarantee about the wrong artifact, so the
+// UMD file is evaluated here exactly as a <script> tag would evaluate it.
+// npm is still needed — `npm ci` is what makes the vendored file reproducible
+// on upgrade — but it is no longer what this check exercises.
+//
 // Run: node system1-flask-chat/tests/js/render_check.mjs
-// Requires `npm install marked` (see tests/test_chat_js_rendering.py, which
-// skips when it is absent).
+// (see tests/test_chat_js_rendering.py, which skips when node is absent).
 
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
 import vm from 'vm';
-import { marked } from 'marked';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const CHAT_JS = resolve(here, '..', '..', 'static', 'js', 'chat.js');
+const STATIC_JS = resolve(here, '..', '..', 'static', 'js');
+const CHAT_JS = resolve(STATIC_JS, 'chat.js');
+const MARKED_UMD = resolve(STATIC_JS, 'marked.umd.js');
 
 // chat.js talks to the DOM at import time. Give it just enough to run.
 const stub = () => ({
@@ -30,11 +38,19 @@ const stub = () => ({
 });
 
 const ctx = {
-  marked,
   document: { getElementById: () => stub(), createElement: () => stub() },
   window: {}, console, fetch: async () => ({}), TextDecoder: class {},
 };
 vm.createContext(ctx);
+
+// Evaluate the vendored UMD bundle first, the way the browser does. It has no
+// module system to attach to in here, so it takes its global branch and
+// defines `marked` on the sandbox — the same object chat.js will find.
+vm.runInContext(readFileSync(MARKED_UMD, 'utf8'), ctx);
+if (typeof ctx.marked === 'undefined') {
+  console.error('FAIL static/js/marked.umd.js did not define a global `marked`');
+  process.exit(1);
+}
 // `markedReady` is a `let`, so it never becomes a property of the sandbox
 // global — hoist it deliberately rather than reading undefined and calling
 // that a pass.

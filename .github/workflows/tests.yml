@@ -29,15 +29,13 @@ jobs:
         run: pip install -r system1-flask-chat/requirements.txt
 
       - uses: actions/setup-node@v4
+        # node only, no install step. render_check.mjs evaluates the vendored
+        # static/js/marked.umd.js — the bytes the browser runs — so it needs
+        # nothing from npm. It used to import the npm ESM build, which meant
+        # the XSS guard was testing a different bundle from the one students
+        # execute, and skipping entirely whenever node_modules was absent.
         with:
           node-version: '22'
-
-      - name: Install test-only JS tooling
-        # Just marked, pinned in package.json. Without it
-        # test_chat_js_rendering.py skips, and the XSS guard on chat.js
-        # silently stops being enforced — a skipped security test reads
-        # identical to a passing one in the summary line.
-        run: npm ci
 
       - name: Run both suites
         # No ANTHROPIC_API_KEY here, and that is still deliberate: these are

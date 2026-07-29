@@ -45,7 +45,12 @@ def healthz():
     whose preDeployCommand migration failed, now fails its health check
     instead of going live broken.
 
-    The error is logged, never returned — a 503 body is public.
+    Neither the response body nor the log carries the exception text. A
+    psycopg OperationalError renders the connection it failed on, so `{e}`
+    can contain the full DSN — user, password, host. The 503 body is public
+    and logs are routinely shipped to third parties, so only the exception
+    *type* is recorded. That is enough to tell a DNS failure from an auth
+    rejection, which is all this endpoint needs to say.
     """
     from sqlalchemy import text
     from models import db
@@ -53,7 +58,13 @@ def healthz():
     try:
         db.session.execute(text('SELECT 1'))
     except Exception as e:
-        current_app.logger.error(f'healthz: database unreachable: {e}')
+        current_app.logger.error(
+            'healthz: database unreachable (%s)', type(e).__name__)
+        # A failed execute leaves the session in a broken transaction, and
+        # the session is request-scoped — without this, anything later in
+        # the same request fails with InvalidRequestError instead of the
+        # real cause.
+        db.session.rollback()
         return jsonify({'status': 'error', 'database': 'unreachable'}), 503
     return jsonify({'status': 'ok', 'database': 'ok'}), 200
 
