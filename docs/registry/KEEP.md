@@ -94,6 +94,17 @@ gated on `TESTING`, and `tests/test_migrations.py` fails CI when a model and the
 migrations disagree. The prohibition existed because nothing could *detect* the
 mistake; that detector now exists. See K14 and K15.
 
+### K7 — Secrets have no fallbacks
+
+`SECRET_KEY` and `ADMIN_PASSWORD` used to fall back to `dev-secret` and `admin`.
+Both are `sync: false` in `render.yaml`, so an operator sets them by hand and can
+forget — and forgetting was silent: the service came up healthy while signing
+session cookies with a value published in this public repo. `create_app` now
+refuses to start.
+
+*Evidence:* `system1-flask-chat/app.py` (`_require_secrets`);
+`system1-flask-chat/tests/test_app.py`.
+
 ### K14 — Alembic owns the production schema; `create_all` is for tests only
 
 They must never both run against a real database. `create_all()` writes no
@@ -114,16 +125,25 @@ is not a general-purpose production clone.
 
 *Evidence:* ADR-0006 §5; `render.yaml`.
 
-### K7 — Secrets have no fallbacks
+### K16 — Live tests gate on mechanics, never on persona judgement
 
-`SECRET_KEY` and `ADMIN_PASSWORD` used to fall back to `dev-secret` and `admin`.
-Both are `sync: false` in `render.yaml`, so an operator sets them by hand and can
-forget — and forgetting was silent: the service came up healthy while signing
-session cookies with a value published in this public repo. `create_app` now
-refuses to start.
+`ANTHROPIC_API_KEY` is a repo secret, so tests can hit the real API. What
+they may *gate* on is bounded by K3: caching engaging, the composed prompt
+being accepted, `_usage_total` matching the SDK — all facts. Whether the bot
+answered well stays a report.
 
-*Evidence:* `system1-flask-chat/app.py` (`_require_secrets`);
-`system1-flask-chat/tests/test_app.py`.
+The temptation is obvious and should be named: a green checkmark for "the
+bot behaved" is exactly what a course lead wants and exactly what the eval
+harness cannot honestly provide. `eval_persona.main()` returns 0 whether or
+not items are flagged, so a job wired to gate on it would be a gate in
+appearance only — worse than no gate, because it would be trusted.
+
+If that changes, it changes via an ADR that supersedes K3, and the thing
+that would justify it is `--runs N` with a rate (#30) plus a byte-exact
+pass condition (ADR-0005 §8) — not a single sample of a judgement call.
+
+*Evidence:* `.github/workflows/live.yml`;
+`system1-flask-chat/tests/test_live_anthropic.py`; `pytest.ini` (`-m "not live"`).
 
 ---
 
@@ -207,7 +227,7 @@ Each row carries its evidence and links to its issue. B11-B13 share one thread.
 | [B5](https://github.com/norrisaftcc/tool-teacherbot/issues/27) | **No CSRF protection.** `flask-wtf` is not in requirements. Deferred by issue #2 and never tracked. | `system1-flask-chat/requirements.txt` |
 | [B6](https://github.com/norrisaftcc/tool-teacherbot/issues/28) | **`increment_tokens` has a read-modify-write race.** Two concurrent requests can both read the old value. Harmless at a cohort's message rate; not harmless as a graded ledger. | `system1-flask-chat/models.py:48` |
 | [B7](https://github.com/norrisaftcc/tool-teacherbot/issues/29) | **Admin view is read-only.** No budget editing, no transcript reading — conversations are fetched and never rendered. | `system1-flask-chat/routes.py:269`; `templates/admin.html` |
-| [B8](https://github.com/norrisaftcc/tool-teacherbot/issues/30) | **`--runs N` for the eval harness.** Each item runs once; `m0.yaml` already records `observed_variance: m0-02: 1 of 3 runs produced a code skeleton` and asks for a rate in writing. | `scripts/eval_persona.py:187`; `evals/csc134/m0.yaml` |
+| [B8](https://github.com/norrisaftcc/tool-teacherbot/issues/30) | **`--runs N` for the eval harness** — now the highest-value backlog row. Each item runs once, and `live.yml` runs the bank weekly, so we are about to accumulate a series of single samples of a thing `m0.yaml` already records as varying (`observed_variance: m0-02: 1 of 3 runs produced a code skeleton`). Without a rate, that series is noise someone will read as a trend. | `scripts/eval_persona.py:187`; `evals/csc134/m0.yaml`; `.github/workflows/live.yml` |
 | [B9](https://github.com/norrisaftcc/tool-teacherbot/issues/31) | **Test deps ship to production.** `pytest` and `pytest-flask` are in the requirements file Render installs. | `system1-flask-chat/requirements.txt` |
 | [B10](https://github.com/norrisaftcc/tool-teacherbot/issues/32) | **Stale root documentation.** ~3,269 lines across nine files describe a five-group project shape that no longer exists; `README.md` still advertises deleted credentials. | `README.md`, `CLAUDE.md`, and seven others |
 | [B11](https://github.com/norrisaftcc/tool-teacherbot/issues/33) | **`.DS_Store` is tracked** at the root and in `design/`. `.gitignore` covers only the latter, which is inert since it is already tracked. | `.gitignore:219` |

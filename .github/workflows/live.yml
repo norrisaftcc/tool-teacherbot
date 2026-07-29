@@ -1,0 +1,86 @@
+name: live
+
+# Tests and evals that call the real Anthropic API.
+#
+# Deliberately NOT on pull_request. Fork PRs cannot read repository secrets,
+# so they would fail with an auth error that looks like a broken test, and
+# every push would spend money. tests.yml stays offline and gates PRs;
+# this runs on demand and once a week.
+on:
+  workflow_dispatch:
+  schedule:
+    # 06:17 Mondays UTC. Off the hour on purpose — scheduled runs pile up at
+    # :00 and get delayed.
+    - cron: '17 6 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------------
+  # Mechanics. These GATE: a failure here means the app is broken against
+  # the real API, not that the bot said something questionable.
+  # ---------------------------------------------------------------------
+  live-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: system1-flask-chat/.python-version
+          cache: pip
+          cache-dependency-path: system1-flask-chat/requirements.txt
+
+      - run: pip install -r system1-flask-chat/requirements.txt
+
+      - name: Run live tests
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        # -m live opts in; pytest.ini deselects the marker by default.
+        # -rs so a missing secret shows up as a reported skip rather than a
+        # green run that tested nothing — the failure mode this job exists
+        # to avoid is looking like it passed.
+        run: python -m pytest -m live -q -rs
+
+  # ---------------------------------------------------------------------
+  # Persona behaviour. This REPORTS and does not gate.
+  #
+  # K3 is frozen: "Eval flags are triage, never a verdict." Wiring the bank
+  # into a merge gate would contradict it. The code agrees — eval_persona
+  # main() returns 0 whether or not items are flagged — so a job that looked
+  # like a gate would be one in appearance only, which is worse than not
+  # having one. Read the transcript artifact.
+  #
+  # Also note the bank's own observed_variance: m0-02 produced a code
+  # skeleton in 1 of 3 runs. A weekly single sample is a data point, not a
+  # trend. Rates need --runs N (#30).
+  # ---------------------------------------------------------------------
+  eval-bank:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version-file: system1-flask-chat/.python-version
+          cache: pip
+          cache-dependency-path: system1-flask-chat/requirements.txt
+
+      - run: pip install -r system1-flask-chat/requirements.txt
+
+      - name: Run the csc134 m0 behaviour bank
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          python scripts/eval_persona.py \
+            --skin csc134 --module m0 --backend anthropic \
+            | tee eval-csc134-m0.txt
+
+      - name: Upload transcripts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-csc134-m0-${{ github.run_number }}
+          path: eval-csc134-m0.txt
+          retention-days: 90
