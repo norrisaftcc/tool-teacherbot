@@ -2,13 +2,32 @@
 
 What this project has settled, what it is still negotiating, and what it owes.
 
-Form borrowed from `norrisaftcc/the_algorithm`'s register. Two rules make it
+Form borrowed from `norrisaftcc/the_algorithm`'s register. Three rules make it
 worth keeping:
 
 - **Every entry carries evidence.** A `file:line`, a test name, a measurement,
   or an ADR. An entry with no citation is an opinion and does not belong here.
 - **Frozen means frozen.** A frozen entry is not reopened by argument, only by
   a new ADR that supersedes it. Negotiating entries are the live surface.
+- **Every frozen entry carries a `Rejected:` line.** It names the options that
+  lost and the cost that ruled each out. An entry that froze without an
+  alternative says so instead — *"Rejected: nothing; no alternative was raised."*
+
+The third rule exists because freezing is destructive. A `## Negotiating` entry is
+rewritten in place when it freezes, and the argument evaporates with it — the
+register keeps the answer and loses the reasoning, which is the half you need when
+the same question returns in six months wearing different clothes. `Rejected:` is
+the compressed negotiation, always present. The full negotiation is always
+recoverable: `git log -p docs/registry/KEEP.md`. No index, no second file, no
+maintenance — the history is a property of the repo, not a thing to curate.
+
+**The rule is prospective, and the file does not yet satisfy it.** Eleven frozen
+entries predate it — K1-K7, K10, K14, K15, K16 — and are not being backfilled in
+the same change that introduces the rule. Writing eleven `Rejected:` lines now
+would mean reconstructing arguments from recollection rather than from the ADRs
+that recorded them, which is the failure #48 spent a whole PR correcting. Tracked
+as B15 against the ADRs where the reasoning is actually recoverable; entries frozen
+after 2026-07-29 carry the line from the start.
 
 Why this file exists: `system1-flask-chat/DEPLOY.md` has instructed *"File
 issues to track them before any production use"* for four named defects since
@@ -242,6 +261,46 @@ often enough that a local K17 would read as the same entry.
 (`test_does_not_flag_the_skeleton_the_corpus_hands_over`); `evals/csc134/m1.yaml`
 item `m1-03`, which fails if the bot *withholds* the skeleton.
 
+*Rejected:* **"never hand over code"** — the rule as previously written, which the
+corpus violates on nearly every assignment page. **Enumerating quotable files** —
+precise, and stale the first time the corpus syncs.
+
+### K19 — The repo never mandates a skill it does not install
+
+A document may record that an agent workflow was used. It may not instruct its
+reader to adopt one.
+
+Skills and plugins are resolved per session, from the environment. A document that
+requires one is a dependency with no manifest and no failure mode: when the skill
+is absent, nothing errors — the agent either stalls or improvises, and the
+document cannot tell which happened. This is worse than an unpinned version,
+because there is no lockfile to inspect and no name to grep for in a dependency
+list.
+
+The compounding case is a **superseded** document that opens with an imperative.
+Four planning docs began with *"REQUIRED SUB-SKILL: Use superpowers:…to implement
+this plan task-by-task"*, naming skills that no session in this repo has ever had
+installed. Three of them had been given a *"do not act on this document"* banner
+in #48 — with the mandate left intact two lines below it. First line wins over
+fourth: the imperative gets acted on before the banner is read. Marking a document
+stale and leaving its instruction voice intact is not marking it stale.
+
+The directives were struck and replaced with a descriptive line, and both
+`docs/superpowers/` and `docs/plans/` were folded into `docs/historical/` —
+`superpowers/` named a vendor's workflow as though it were this project's
+structure, and that framing is what made the mandate look like it belonged.
+
+*Rejected:* **downgrade "REQUIRED" to "recommended"** — keeps a
+dependency-with-no-manifest, just quieter. **Delete the documents** — they hold
+the reasoning behind the Render bootstrap that `DEPLOY.md` still points at as its
+fallback procedure. **Banner only, leave the imperative** — what #48 did, and the
+contradiction is the defect.
+
+*Evidence:* four `REQUIRED SUB-SKILL` directives naming `superpowers:*`, none
+installed in the session that found them (`/root/.claude/plugins/` empty, absent
+from the skill list). Struck in this change; `grep -rn "REQUIRED SUB-SKILL" .`
+returns nothing.
+
 ---
 
 ## Negotiating
@@ -287,7 +346,10 @@ reopened.
 
 ## Backlog
 
-Each row carries its evidence and links to its issue. B11-B13 share one thread.
+Each row carries its evidence. A row that has been filed links its issue; a row
+marked **unfiled** has not been, and filing it is the next action on it — this
+register is the tracking of last resort, not a substitute for the issue. B11-B13
+share one thread.
 
 | # | Item | Evidence |
 |---|---|---|
@@ -304,3 +366,5 @@ Each row carries its evidence and links to its issue. B11-B13 share one thread.
 | [B11](https://github.com/norrisaftcc/tool-teacherbot/issues/33) | **`.DS_Store` is tracked** at the root and in `design/`. `.gitignore` covers only the latter, which is inert since it is already tracked. | `.gitignore:219` |
 | [B12](https://github.com/norrisaftcc/tool-teacherbot/issues/33) | **Flask-Login is vestigial.** Initialised, `load_user` returns `None`, auth is entirely session-based. Either use it or drop the dependency. | `system1-flask-chat/app.py` |
 | [B13](https://github.com/norrisaftcc/tool-teacherbot/issues/33) | **`design/system1/*.jsx` are not wired into the app** and reference a `terminal.css` that no longer exists. | `docs/design/design-guidelines.md` |
+| B14 *(unfiled)* | **Moving a session between a local workstation and the cloud, when only one of the two can reach the deploy target.** Tabled explicitly by the course lead. This session is the first concrete instance: planning ran in a cloud container that cannot reach `api.render.com` (403 at the egress proxy) or port 5432, so every Render action had to be authored here and executed elsewhere. There is no mechanism for handing partial state across that boundary — the plan file and the git branch are doing it by hand. Recorded so it is not re-discovered a third time. | this session; `curl https://api.render.com/v1/services` → `CONNECT tunnel failed, response 403` |
+| B15 *(unfiled)* | **Backfill `Rejected:` lines on the eleven frozen entries that predate the rule** — K1-K7, K10, K14, K15, K16. Recover the alternatives from the ADRs that recorded them, not from recollection. An entry whose ADR names no alternative gets *"Rejected: nothing; no alternative was raised"* rather than an invented one. | `docs/registry/KEEP.md` header rule 3; `docs/adr/` |

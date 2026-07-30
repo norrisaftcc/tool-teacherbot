@@ -1,5 +1,14 @@
 # System 1 Design: Flask Chat Interface
 
+> **HISTORICAL — do not act on this file.** The May 2026 MVP design: five
+> hardcoded capstone groups, SQLite, no corpus window, no migrations. Every one
+> of those has since changed — cohort skins replaced the groups (ADR-0001),
+> Postgres replaced SQLite, ADR-0002 windowed the corpus, and ADR-0006 gave
+> Alembic the schema. `Status: Approved` below refers to that design being
+> approved in May, not to it still describing the code. Kept as a paper trail.
+> For what is actually true, read `docs/adr/`, `docs/registry/KEEP.md`, and
+> `system1-flask-chat/DEPLOY.md`.
+
 **Date:** 2026-05-12
 **Status:** Approved
 **Scope:** MVP alpha — local development first, Render deploy after stable

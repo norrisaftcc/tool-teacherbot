@@ -11,14 +11,17 @@
 > It is kept for the reasoning, not the steps. Current operator truth is
 > `system1-flask-chat/DEPLOY.md`; current decisions are `docs/registry/KEEP.md`.
 >
-> This banner exists because the file opens by instructing an agent to execute
-> it task-by-task, which is the one kind of stale document that can do damage.
+> This banner exists because the file is written as executable steps. It used to
+> open with a directive telling an agent to work through it task-by-task; that
+> directive was struck in July 2026 (K19), because a superseded document whose
+> first line is an imperative gets acted on before the banner is read.
 
-> **SUPERSEDED by `docs/superpowers/plans/2026-05-16-render-deployment.md`.**
+> **SUPERSEDED by `docs/historical/plans/2026-05-16-render-deployment.md`.**
 > MCP tools assumed by this plan are not available. See the 2026-05-16 plan
 > for the CLI+REST approach actually used.
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> *Steps use `- [ ]` checkboxes. This was written for task-by-task execution by an
+> agent; it records how the work was sequenced, not how to sequence work now.*
 
 **Goal:** Deploy `system1-flask-chat` to Render as a Python web service backed by a managed PostgreSQL database.
 
