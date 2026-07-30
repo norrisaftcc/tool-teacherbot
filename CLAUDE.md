@@ -9,7 +9,7 @@ directory does not exist — see `docs/historical/`.
 | File | Why |
 |---|---|
 | `docs/registry/KEEP.md` | **Decision register.** What is frozen, what is still negotiating, and the backlog. Start here. |
-| `docs/adr/` | Why the code is shaped this way. 0001-0003 Accepted, 0004-0005 Proposed. |
+| `docs/adr/` | Why the code is shaped this way. 0001-0004 and 0006 Accepted, 0005 Proposed. |
 | `system1-flask-chat/DEPLOY.md` | Operator runbook — env vars, redeploy, logs, rollback, suspend. |
 
 ## What's where
