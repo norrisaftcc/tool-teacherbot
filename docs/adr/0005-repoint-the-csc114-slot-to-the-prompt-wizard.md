@@ -197,7 +197,8 @@ it recreates the exact defect ADR-0002 was written to fix, one layer up. The
 cost is wrong — the persona sits inside the cached prefix and is billed on every
 message for every student, and `csc134_teaching_notes.md` earned its place with
 a measured result while no comparable evidence exists for Algorithm vocabulary
-in a `cout` answer. And it contradicts K17, which scopes gate authority to late
+in a `cout` answer. And it contradicts `the_algorithm`'s K17, which scopes gate
+authority to late
 capstone: week-1 first-years are the far end of the linear-implementor side, so
 teaching them to hold a gate implements the opposite of what the register says.
 

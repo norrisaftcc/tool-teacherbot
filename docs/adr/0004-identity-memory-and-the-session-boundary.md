@@ -269,8 +269,9 @@ the gate stays human-opened and nothing is inherited silently.
 
 ### 4. The assessable unit is the freeze event, not the conversation
 
-Server-side memory is necessary but not sufficient for the gradebook. What K17
-wants graded is whether the student *held the gate correctly* — froze at the
+Server-side memory is necessary but not sufficient for the gradebook. What
+`the_algorithm`'s K17 wants graded is whether the student *held the gate
+correctly* — froze at the
 right moment, with the right floor, having elicited the right gaps. A raw turn
 log does not show that. `frozen_at` plus the floor's content at freeze time
 does.

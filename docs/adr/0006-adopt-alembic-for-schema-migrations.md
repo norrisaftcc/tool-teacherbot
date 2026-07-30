@@ -1,9 +1,19 @@
 # ADR-0006: Adopt Alembic, and rebuild on Render Pro rather than migrating
 
-- **Status:** Proposed
+- **Status:** Accepted (2026-07-30). Proposed 2026-07-29.
 - **Date:** 2026-07-29
 - **Deciders:** norrisaftcc (product), Claude Code (implementation)
 - **Supersedes:** KEEP entry K6
+
+**Accepted a day late, and the delay is worth recording.** This ADR shipped its
+implementation on 2026-07-29 — the migrations directory, the baseline revision,
+`preDeployCommand: flask db upgrade`, and `tests/test_migrations.py` — and by the
+end of that day six code comments, `CLAUDE.md`, `DEPLOY.md` and two register
+entries all cited it as settled. Frozen K14 named it as evidence; K6 recorded
+itself as superseded by it. Under the register's own rule a **Proposed** ADR can
+do neither, so for one day the schema decision rested on a document that had not
+been accepted. Nobody was wrong about the decision; the paperwork was just behind
+the code, which is the same drift the register exists to catch, one layer up.
 
 ## Context
 

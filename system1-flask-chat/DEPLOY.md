@@ -7,18 +7,38 @@ procedure documented in
 
 ## Service summary
 
-| Property | Value |
-|---|---|
-| Service name | `teacherbot-pro` |
-| Database name | `teacherbot-pro-db` (+ `teacherbot-pro-db-staging` for migration rehearsal) |
-| Region | Virginia (us-east) |
-| Plan | Pro (web + DB) |
-| Branch deployed | `main` |
-| Root directory | `system1-flask-chat` |
-| Auto-deploy | enabled (every push to `main`) |
-| Pre-deploy | `flask db upgrade` — migrations run before traffic shifts |
-| Health check | `/healthz` — runs `SELECT 1`, 503s if Postgres is unreachable |
-| Service URL | recorded in the tracking issue at first deploy |
+> **This table describes what `render.yaml` asks for, not a service anyone has
+> confirmed exists.** The Blueprint has never been applied — its three `plan:`
+> values are still the deliberately-invalid placeholders — and the free-tier stack
+> it replaces is gone. Every row below is marked for which of the two it is.
+> Nothing here is evidence that production is up. Establish the real state from
+> the Render dashboard and replace the *unverified* marks with what you find.
+
+| Property | Value | Source |
+|---|---|---|
+| Service name | `teacherbot-pro` | `render.yaml:27` — **intended** |
+| Database name | `teacherbot-pro-db` (+ `teacherbot-pro-db-staging` for migration rehearsal) | `render.yaml:74,94` — **intended** |
+| Region | **undeclared.** `render.yaml` has no `region:` key on the service or either database, so an apply takes Render's default rather than a pinned region. This previously read "Virginia (us-east)", which nothing in the repo supported. See the warning below — it is not only a documentation gap. | repo fact |
+| Plan | **unset** — `render.yaml:33,79,95` still hold `REPLACE_WITH_PAID_*_PLAN`. The *account* is Pro tier, which is a different thing and is what satisfies the Blueprint's payment-method gate. | repo fact |
+| Branch deployed | `main`, **by default not by declaration** — `render.yaml` has no `branch:` key, so Render follows the repo's default branch | repo fact |
+| Root directory | `system1-flask-chat` | `render.yaml:34` — **intended** |
+| Auto-deploy | enabled (every push to `main`) | `render.yaml:44` — **intended** |
+| Pre-deploy | `flask db upgrade` — migrations run before traffic shifts | `render.yaml:41` — **intended** |
+| Health check | `/healthz` — runs `SELECT 1`, 503s if Postgres is unreachable | `routes.py` — **in the code** |
+| Service URL | **unknown.** Derives from the service name, so it changes if the name does — settle the name before handing an address to a cohort. | — |
+
+> **The undeclared region is a latent defect, not just an unfilled cell.**
+>
+> Same-region Postgres is what makes the *internal* connection string usable; the
+> external one needs a TLS handshake that flakes from inside Render's network.
+> `render.yaml` pins no region on the web service or on either database, so an
+> apply places all three at Render's default — and nothing in the file guarantees
+> they land together. If the service and its database end up in different regions,
+> `fromDatabase` hands over an internal host that the service cannot reach, and
+> the failure looks like a connection timeout rather than a config error.
+>
+> Pin `region:` explicitly on all three before applying the Blueprint. Which
+> region is a decision, not a default worth inheriting silently.
 
 > **Rebuilt on Pro tier, 2026-07-29, rather than migrated.**
 >
