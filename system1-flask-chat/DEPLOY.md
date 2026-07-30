@@ -10,9 +10,18 @@ procedure documented in
 > **This table describes what `render.yaml` asks for, not a service anyone has
 > confirmed exists.** The Blueprint has never been applied — its three `plan:`
 > values are still the deliberately-invalid placeholders — and the free-tier stack
-> it replaces is gone. Every row below is marked for which of the two it is.
-> Nothing here is evidence that production is up. Establish the real state from
-> the Render dashboard and replace the *unverified* marks with what you find.
+> it replaces is gone. **Nothing here is evidence that production is up.**
+>
+> The **Source** column says where each row comes from, and there are exactly
+> three kinds:
+>
+> - **intended** — declared in `render.yaml`, never confirmed against a live service.
+> - **repo fact** — checkable from this repo today, including the absences.
+> - **in the code** — implemented in the app itself.
+>
+> Once the real state is established from the Render dashboard, replace the
+> **intended** rows with what actually exists and say so in the Source column.
+> A row that stays **intended** is a row nobody has verified.
 
 | Property | Value | Source |
 |---|---|---|
@@ -25,7 +34,7 @@ procedure documented in
 | Auto-deploy | enabled (every push to `main`) | `render.yaml:44` — **intended** |
 | Pre-deploy | `flask db upgrade` — migrations run before traffic shifts | `render.yaml:41` — **intended** |
 | Health check | `/healthz` — runs `SELECT 1`, 503s if Postgres is unreachable | `routes.py` — **in the code** |
-| Service URL | **unknown.** Derives from the service name, so it changes if the name does — settle the name before handing an address to a cohort. | — |
+| Service URL | **unknown.** Derives from the service name, so it changes if the name does — settle the name before handing an address to a cohort. | repo fact |
 
 > **The undeclared region is a latent defect, not just an unfilled cell.**
 >
