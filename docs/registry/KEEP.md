@@ -301,6 +301,48 @@ installed in the session that found them (`/root/.claude/plugins/` empty, absent
 from the skill list). Struck in this change; `grep -rn "REQUIRED SUB-SKILL" .`
 returns nothing.
 
+### K20 — Orphaned worktrees from the 2026-05-12 MVP audit carried no unrecovered work, and were deleted
+
+Two worktrees under `.claude/worktrees/` — `laughing-sinoussi-db36cf` (branch
+`claude/laughing-sinoussi-db36cf`, commit `8904d09`) and `quizzical-banzai-14f65c`
+(branch `claude/quizzical-banzai-14f65c`, commit `1db44fe`) — sat untouched since
+2026-05-12, from a spec-vs-implementation audit run when System 1 was still only
+`models.py`. `8904d09` added seventeen draft GitHub issues (`docs/issues/001` to
+`017`, never committed to `main`); `quizzical-banzai-14f65c` added nothing beyond
+an untracked copy of the audit itself, and its base commit was already an
+ancestor of `main`.
+
+Checked each draft against `main` as of 2026-07-30: the eight "implement X from
+scratch" items (`app.py`, `auth.py`, `claude_handler.py`, `routes.py`, templates,
+context files, `render.yaml`, the SDK pin, CI, test modules) had all shipped. The
+remaining spec/quality findings — the admin `?password=` URL, missing CSRF, the
+`increment_tokens` race, vestigial Flask-Login — were not sourced from these
+drafts; an independent audit had already found and filed them as #26, #27, #28,
+#33 (B4, B5, B6, B12). Neither branch was ever pushed to a remote. Both
+worktrees and branches were removed.
+
+**What this entry does not cover.** The audit swept worktrees and branches. It
+did not sweep the stash, and there is one: `stash@{0}`
+(*"On csc134/eval-first-haiku-run: !!GitHub_Desktop"*, based on `f6d2fb7`,
+2026-07-25) holds 454 lines across eleven never-committed files — ten
+`.claude/agents/*.md` definitions and `.claude/launch.json`. All additions, all
+tooling configuration rather than application code, so nothing in the app's
+history depends on it. It is out of scope for this entry, which is about the
+2026-05-12 worktrees; it is recorded here because an audit that concluded "no
+unrecovered work" while a 454-line stash sat unexamined would be asserting more
+than it checked. Tracked separately.
+
+*Evidence:* `git worktree list` (pre-removal: two entries under
+`.claude/worktrees/`); `git merge-base --is-ancestor 1db44fe main` (true);
+`git log --oneline main..8904d09` (one commit, not an ancestor of `main`);
+issues #26, #27, #28, #33. Stash: `git stash list`, `git stash show --stat stash@{0}`.
+
+Rejected: **open a PR from the untracked plan file and the drafts, as a dated
+record of the audit** — every finding it would document is already tracked under
+a different, better-scoped issue number; the PR would add a duplicate trail, not
+new information. **Leave the worktrees in place** — they were already two and a
+half months stale, and nothing about waiting further improves the assessment.
+
 ---
 
 ## Negotiating
