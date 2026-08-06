@@ -4,12 +4,15 @@ An AI teaching assistant for community-college courses. One Flask app serves a
 **skin** per cohort: its own URL prefix, passcode, model, persona, and vendored
 course corpus. Live on Render at https://teacherbot-6yut.onrender.com/.
 
-> **Status, 2026-07-28.** CSC 114 has finished; its skin is still registered
+> **Status, 2026-08-06.** CSC 114 has finished; its skin is still registered
 > pending [#21](https://github.com/norrisaftcc/tool-teacherbot/issues/21). CSC 134
-> is a Fall cohort. The capstone this was originally built for is weeks off, and
-> its design is [ADR-0004](docs/adr/0004-identity-memory-and-the-session-boundary.md)
-> and [ADR-0005](docs/adr/0005-repoint-the-csc114-slot-to-the-prompt-wizard.md),
-> both still Proposed.
+> is a Fall cohort. The capstone this was originally built for is weeks off. Its
+> memory design,
+> [ADR-0004](docs/adr/0004-identity-memory-and-the-session-boundary.md), was
+> **Accepted** on 2026-07-29 and is not yet built
+> ([#20](https://github.com/norrisaftcc/tool-teacherbot/issues/20)); the csc114
+> repoint, [ADR-0005](docs/adr/0005-repoint-the-csc114-slot-to-the-prompt-wizard.md),
+> is still **Proposed** and is the one open architectural question.
 >
 > The "System 2" CLI distribution described in the original plan was never
 > started, and there is no `system2-code-distribution/` directory. Those
@@ -51,14 +54,15 @@ so it can be rotated without a public commit.
 
 ```
 system1-flask-chat/        the app (Render rootDir)
-  app.py                   factory; db.create_all() at startup
+  app.py                   factory; db.create_all() only under TESTING
   auth.py                  SKINS registry, corpus windowing, path-traversal guard
   routes.py                picker + one blueprint per skin
   claude_handler.py        prompt composition, caching, token accounting
   models.py                Group / Conversation / Message
+  migrations/              Alembic — owns the real schema (ADR-0006)
   context/                 personas, headers, vendored corpora
   DEPLOY.md                operator runbook — env vars, logs, rollback
-docs/adr/                  architecture decisions (0001-0005)
+docs/adr/                  architecture decisions (0001-0006)
 docs/registry/KEEP.md      decision register + backlog
 docs/historical/           superseded planning docs, kept as paper trail
 scripts/                   corpus sync, eval harness, transcript export
