@@ -1,6 +1,8 @@
 # AlgoCratic TA Systems
 
-A Flask AI teaching assistant, live on Render, serving one **skin** per cohort.
+A Flask AI teaching assistant serving one **skin** per cohort, deployed to
+Render — though what is running there right now is unverified, and establishing
+that is a prerequisite for most operational work (see **Live service**).
 System 2 (the CLI distribution in the original plan) was never started and its
 directory does not exist — see `docs/historical/`.
 
@@ -23,7 +25,7 @@ directory does not exist — see `docs/historical/`.
 | `scripts/sync_course_corpus.py` | Vendors a course repo into `context/<slug>/` per a manifest. |
 | `scripts/eval_persona.py` | Runs a behaviour bank against the real composed prompt. |
 | `scripts/export_group_transcripts.py` | Exports a cohort's transcripts before its skin is unregistered (K12). |
-| `evals/csc134/m0.yaml` | The only behaviour bank so far. |
+| `evals/csc134/m0.yaml`, `m1.yaml` | The behaviour banks. csc134 only, m0 and m1. |
 | `docs/historical/` | Every superseded planning doc, bannered. Do not act on them. `plans/` and `specs/` are the May 2026 *executable* plans, written as task-by-task steps against a free-tier stack that no longer exists. Their agent-mandate directives were struck under K19. |
 
 ## Live service
@@ -92,13 +94,24 @@ rows first, or the rehearsal returns green and is evidence of nothing.
 
 All tracked as issues and indexed in `docs/registry/KEEP.md`. The live ones worth
 knowing before you touch related code: admin auth is a query parameter (#26), no
-CSRF (#27), `increment_tokens` has a read-modify-write race (#28), `marked` is
-unpinned and unhashed (#25), corpus manifests track a moving branch (#24).
+CSRF (#27), `increment_tokens` has a read-modify-write race (#28), test deps ship
+to production (#31), corpus manifests track a moving branch (#24 — a declared
+prerequisite for ADR-0005).
+
+**Before citing this list, check it.** It named `marked` as unpinned (#25) for
+eight days after #41 vendored `marked@18.0.7` and dropped the CDN tag. Verify
+against `KEEP.md`'s backlog and `gh issue view`, not against this paragraph.
 
 ## Tech stack
 
-Flask 3.x, Flask-SQLAlchemy, Anthropic SDK 0.101.0, psycopg3, gunicorn,
-Python 3.11.9, Render free tier.
+Flask 3.0.0, Flask-SQLAlchemy 3.1.1, Flask-Migrate 4.1.0, Anthropic SDK 0.101.0,
+psycopg3, gunicorn 21.2.0, Python 3.11.9 (from `system1-flask-chat/.python-version`).
+
+**Render tier, stated precisely, because two shorter versions are both wrong.**
+The *account* is Pro (since 2026-07-29). The *service plans* are unset — the
+three `plan:` values in `render.yaml` are still invalid placeholders — so
+nothing is provisioned under them. Neither "free tier" nor "running on Pro" is
+an accurate summary.
 
 ## Conventions
 
