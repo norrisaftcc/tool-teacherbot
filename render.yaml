@@ -61,6 +61,28 @@ services:
         sync: false
       - key: ADMIN_PASSWORD
         sync: false
+      # CTS 285 skin (ADR-0007). Declared so an operator sees them in the
+      # dashboard; all five are optional, none has a value here, and this
+      # repository is public, so a credential never goes in this file.
+      #   CTS285_USERNAME / CTS285_PASSWORD  login; unset or blank means the
+      #       documented test defaults. Rotate before real students.
+      #   CTS285_ACTIVE_MODULE  m0..m8; unset or blank means the skin's own.
+      #   CTS285_TOKEN_BUDGET   integer below 2**31-1; unset or blank means
+      #       the skin's own (2,000,000,000).
+      #   CTS285_ANTHROPIC_API_KEY  a key from a dedicated Anthropic workspace
+      #       with a monthly spend limit. Unset or blank means the skin
+      #       answers on ANTHROPIC_API_KEY, which is shared with csc134.
+      # See system1-flask-chat/DEPLOY.md, "CTS 285 skin".
+      - key: CTS285_USERNAME
+        sync: false
+      - key: CTS285_PASSWORD
+        sync: false
+      - key: CTS285_ACTIVE_MODULE
+        sync: false
+      - key: CTS285_TOKEN_BUDGET
+        sync: false
+      - key: CTS285_ANTHROPIC_API_KEY
+        sync: false
       # Required by `flask db upgrade` in preDeployCommand — without it the
       # pre-deploy step fails before the app is ever built.
       - key: FLASK_APP
