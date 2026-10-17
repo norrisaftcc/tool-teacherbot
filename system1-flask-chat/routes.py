@@ -161,13 +161,24 @@ def _read_chat_request(skin: dict):
     # fit inside the item-count cap. Every kept item gets the same bound. A
     # sum bound of history_messages * max_message_chars would add nothing,
     # because ten items of at most 6,000 characters already cannot exceed it.
+    #
+    # Assistant items get a wider bound. chat.js sends the tutor's own replies
+    # back as history, and a reply can run to the skin's max_tokens, which is
+    # longer than max_message_chars. Bounding those at the user limit would
+    # turn one long answer into a 400 on every request until it left the
+    # window. Five characters per output token is generous for English prose,
+    # so the bound still refuses a forged item while passing any real reply.
     if max_chars and isinstance(history, list):
+        reply_chars = max(max_chars, (skin.get('max_tokens') or 4096) * 5)
         for item in history:
-            content = item.get('content') if isinstance(item, dict) else None
-            if isinstance(content, str) and len(content) > max_chars:
+            if not isinstance(item, dict):
+                continue
+            content = item.get('content')
+            bound = reply_chars if item.get('role') == 'assistant' else max_chars
+            if isinstance(content, str) and len(content) > bound:
                 return None, None, (jsonify({
                     'error': (f'A message in the conversation is too long. '
-                              f'Keep each one under {max_chars:,} characters.'),
+                              f'Keep each one under {bound:,} characters.'),
                 }), 400)
     return user_message, history, None
 

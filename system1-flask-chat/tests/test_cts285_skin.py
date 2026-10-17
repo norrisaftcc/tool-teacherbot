@@ -414,14 +414,30 @@ def test_over_long_history_item_is_a_400_before_any_api_call(
         client, anthropic_client, path, role):
     """``max_message_chars`` used to bound only ``message``. The same text
     sent inside ``history`` reached the model unbounded."""
+    from auth import SKINS
+    bound = 6000 if role == 'user' else SKINS['cts285']['max_tokens'] * 5
     _login(client)
     history = _history(4)
-    history[1 if role == 'assistant' else 2]['content'] = 'x' * 6001
+    history[1 if role == 'assistant' else 2]['content'] = 'x' * (bound + 1)
     r = client.post(path, json={'message': 'now', 'history': history})
     assert r.status_code == 400
-    assert '6,000' in r.get_json()['error']
+    assert f'{bound:,}' in r.get_json()['error']
     anthropic_client.messages.create.assert_not_called()
     anthropic_client.messages.stream.assert_not_called()
+
+
+@pytest.mark.parametrize('path', ['/cts285/api/chat', '/cts285/api/chat/stream'])
+def test_a_long_tutor_reply_sent_back_as_history_is_accepted(client, anthropic_client, path):
+    """chat.js sends the tutor's own replies back as history. A reply can run
+    to max_tokens, which is longer than max_message_chars, and bounding it at
+    the user limit made every later request a 400 until it left the window."""
+    stream_client = _stream_client(['ok'], _message([_text_block('ok')]))
+    history = _history(4)
+    history[1]['content'] = 'x' * 16000
+    with patch('claude_handler.client', stream_client if 'stream' in path else anthropic_client):
+        _login(client)
+        r = client.post(path, json={'message': 'now', 'history': history})
+    assert r.status_code == 200
 
 
 @pytest.mark.parametrize('path', ['/cts285/api/chat', '/cts285/api/chat/stream'])
