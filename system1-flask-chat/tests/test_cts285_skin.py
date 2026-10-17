@@ -255,6 +255,34 @@ def test_existing_skins_keep_their_algocratic_chrome(client):
     assert 'OPERATIVE' in chat_page
 
 
+def test_root_picker_does_not_list_the_neutral_skin(client):
+    """The picker is AlgoCratic-framed (clearance chips, "The Algorithm is
+    watching"). A neutral skin listed there is out of character on its own
+    discovery page. csc114 and csc134 stay listed."""
+    body = client.get('/').data.decode()
+    assert '/cts285/' not in body
+    assert 'CTS285' not in body and 'CTS 285' not in body
+    assert '/csc114/' in body and '/csc134/' in body
+
+
+def test_sign_out_of_a_neutral_skin_returns_to_its_own_sign_in(client):
+    """Logout used to redirect every skin to the AlgoCratic picker."""
+    _login(client)
+    r = client.get('/logout')
+    assert r.status_code == 302
+    assert r.headers['Location'].endswith('/cts285/')
+    page = client.get('/cts285/').data.decode()
+    assert 'Sign in' in page and 'algocratic' not in page.lower()
+
+
+def test_logout_from_an_algocratic_skin_still_returns_to_the_picker(client):
+    from auth import SKINS
+    client.post('/csc134/login', data={'password': SKINS['csc134']['password']})
+    r = client.get('/logout')
+    assert r.status_code == 302
+    assert r.headers['Location'] in ('/', 'http://localhost/')
+
+
 # ---- request shape ---------------------------------------------------------
 
 def test_cts285_request_shape_on_haiku_5_5(client, anthropic_client):

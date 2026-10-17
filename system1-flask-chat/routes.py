@@ -20,12 +20,24 @@ main = Blueprint('main', __name__)
 def index():
     from auth import SKINS
     active_slug = session.get('skin')
-    return render_template('picker.html', skins=SKINS, active_slug=active_slug)
+    # The picker is AlgoCratic-framed. A neutral-chrome skin is out of
+    # character on purpose and is reached by its direct URL, so it is not
+    # listed here, where it would carry a clearance chip and "The Algorithm
+    # is watching" around a course tutor.
+    listed = {slug: skin for slug, skin in SKINS.items()
+              if skin.get('chrome') != 'neutral'}
+    return render_template('picker.html', skins=listed, active_slug=active_slug)
 
 
 @main.route('/logout')
 def logout():
+    from auth import SKINS
+    slug = session.get('skin')
     session.clear()
+    # Sign-out from a neutral-chrome skin returns to that skin's own sign-in
+    # page, not to the AlgoCratic picker.
+    if slug in SKINS and SKINS[slug].get('chrome') == 'neutral':
+        return redirect(f'/{slug}/')
     return redirect(url_for('main.index'))
 
 
