@@ -27,6 +27,7 @@ forced the choice, the option we picked, and what living with it will cost.
 | [0004](0004-identity-memory-and-the-session-boundary.md) | Seat identity, server-side memory, and the session boundary | Accepted (2026-07-29) |
 | [0005](0005-repoint-the-csc114-slot-to-the-prompt-wizard.md) | Repoint the csc114 slot to the Prompt Wizard | Proposed |
 | [0006](0006-adopt-alembic-for-schema-migrations.md) | Adopt Alembic, and rebuild on Render Pro rather than migrating | Accepted (2026-07-30) |
+| [0007](0007-serve-cts285-as-a-haiku-5-5-skin.md) | Serve CTS 285 as a Haiku 5.5 skin | Proposed |
 
 ## Template
 
