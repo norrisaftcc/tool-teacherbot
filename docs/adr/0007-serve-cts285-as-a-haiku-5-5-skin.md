@@ -137,18 +137,18 @@ present for cts285 and absent for csc134 and csc114, and that no sampling parame
 - **History forgery is still possible.** The client still supplies the history, and a client can
   claim the assistant said anything inside the window. `history_messages` bounds the item count and
   nothing else: on its own it did not bound cost, because ten items can each be any length.
-  `max_message_chars` therefore also applies to every kept history item, and together the two cap the
-  window at `history_messages * max_message_chars` characters. Neither bounds trust. This implements
-  the cost half of ADR-0004 section 5 for this skin only.
-- **An honest long reply can lock a student out for a few turns.** The page sends each assistant reply
-  back as history. The skin allows 4,096 output tokens, which can exceed 6,000 characters, and a reply
-  that long makes the next request a 400 until it leaves the ten-item window. Persona and teaching
-  notes ask for short answers, and this has not been observed; it was not measured against the real
-  API. If it appears, raise the bound for `assistant` items only. Do not drop the bound.
+  `max_message_chars` therefore also applies to every kept `user` history item. `assistant` items get
+  a wider bound, `max_tokens * 5` characters (20,480 for this skin), because the page sends each
+  reply back as history and a reply can run to `max_tokens`, which is longer than 6,000 characters.
+  At the user bound one honest long reply made every later request a 400 until it left the window.
+  Together the bounds cap the window's size. Neither bounds trust. This implements the cost half of
+  ADR-0004 section 5 for this skin only.
 - **The corpus is published in a public repository.** The vendored pages are the course's own
   student-visible material, and `reference/18-the-dataman-manual.md` is a full transcript of the 1977
-  Texas Instruments manual. Whether that redistribution is acceptable is a question for the course
-  lead, not settled here. Removing it is one manifest line, at the cost of weaker DataMan grounding.
+  Texas Instruments manual. **Decided by the repository owner on 2026-10-17:** the student-facing
+  material is vendored as it is. If public redistribution becomes a problem, the owner may make the
+  repository private, which needs no code change. Removing the manual is one manifest line, at the
+  cost of weaker DataMan grounding.
 - **The source is the course's development copy, not the live cohort's Canvas.** Some live pages
   differ (the source records a 2026-10-08 export check). The cohort header tells the tutor and the
   student so; a student who quotes a difference is told to believe the page they see and ask the
@@ -176,7 +176,8 @@ sync records the SHA it read. A sync that clones still tracks a moving branch an
 
 **Open decisions this ADR does not make:** whether the instructional lead confirms K21; which module
 the live cohort is in (the `active_module` default is `m4`); whether a separate Anthropic workspace
-is created; whether the public redistribution of the manual stands.
+is created. (Public redistribution of the corpus was decided by the owner on 2026-10-17; see
+Consequences.)
 
 ## Alternatives Considered
 
