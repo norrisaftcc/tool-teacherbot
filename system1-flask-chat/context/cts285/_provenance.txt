@@ -1,0 +1,3 @@
+source_sha: 6dc044fa7d3bcc01740adb0533e581ed3c4036de
+upstream: https://github.com/AMLW05/cts-285_SOURCE
+manifest: scripts/cts285_manifest.yaml

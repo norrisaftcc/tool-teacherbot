@@ -1,0 +1,242 @@
+# Manifest for sync_course_corpus.py (CTS-285, Systems Analysis & Design).
+# Edit this file to stage new corpus content, then re-run:
+#     python scripts/sync_course_corpus.py --manifest scripts/cts285_manifest.yaml \
+#         --source /path/to/cts-285_SOURCE
+#
+# The upstream repository is PRIVATE, so the sync reads a local clone
+# (--source) instead of cloning. `upstream` and `ref` are recorded in
+# context/cts285/_provenance.txt next to the commit SHA the clone was at.
+#
+# STUDENT-VISIBLE MATERIAL ONLY. This bot answers students. Anything vendored
+# can land in the system prompt, where no persona wording reliably holds it
+# back, so `paths` is an explicit FILE allow-list (no directory entries) and
+# `deny` below is a hard guard over it. A denied path in `paths` makes the
+# sync raise and write nothing, because it means the allow-list is wrong.
+#
+# How `paths` was built: every `file` under every module's `source_dir` in
+# the upstream `binder/manifest.json` (the sequence students see in Canvas),
+# except the five `retired: true` M2 children (11-15, the elicitation case's
+# branch pages). Those hold the case reveals; the hosted case serves them one
+# at a time, and the bot must not hand over the investigation. Then the
+# student-facing extras: files a student opens, copies into their own
+# repository, or runs.
+#
+# Left out ON PURPOSE, and why:
+#   module-02/student-facing/m2-simulation-class-handout.md
+#       Opens "PROPOSED - NOT APPROVED - DO NOT DISTRIBUTE". It is a reopen
+#       that waits on the course owner; no student has it.
+#   module-03/templates/product-backlog-template.md
+#       A near-duplicate of module-03/student-facing/dataman-product-backlog-template.md,
+#       which is vendored. The only mention of its file name in the M3 pages
+#       is inside an HTML build note, which the converter drops, so no
+#       vendored page names it.
+#   module-05/starter/minimal-flask-app/templates/index.html
+#       A Jinja template, not a Canvas page. `transforms` is keyed by suffix,
+#       so '.html' would run html-to-markdown over it and drop the <form>,
+#       <input> and <button> (measured 2026-10-17). A starter file the bot
+#       shows with its form missing is worse than a starter file it does not
+#       have. Add it back once `transforms` can fence one path.
+#   module-07/student-facing/failure-variants/
+#       Planted-defect lab targets. Denied by pattern below.
+#   module-04/final-build/03-prepare-..., 04-after-labs-..., 06-design-investigation-application.html
+#       On disk but not in binder/manifest.json, so not in the Canvas sequence.
+strip_prefix: ''
+upstream: https://github.com/AMLW05/cts-285_SOURCE
+ref: main
+target: system1-flask-chat/context/cts285
+
+paths:
+  # --- M0 ---
+  - module-0-getting-started/final-build/01-module-0-overview-ready-to-work.html
+  - module-0-getting-started/final-build/02-m0-1-files-folders-and-zip-files.html
+  - module-0-getting-started/final-build/03-m0-2-vs-code-as-a-text-editor.html
+  - module-0-getting-started/final-build/04-m0-3-working-in-github-codespaces.html
+  - module-0-getting-started/final-build/05-module-0-ready-check.html
+  # --- M1 ---
+  - module-01/final-build/01-welcome-to-algocratic.html
+  - module-01/final-build/02-m1-t-the-sandwich-one.html
+  - module-01/final-build/03-module-1-overview.html
+  - module-01/final-build/04-1-1-what-is-systems-analysis-and-design.html
+  - module-01/final-build/05-1-2-what-is-systems-analysis.html
+  - module-01/final-build/07-1-3-what-is-systems-design.html
+  - module-01/final-build/09-1-4-the-systems-development-life-cycle.html
+  - module-01/final-build/11-1-5-reading-a-system-like-a-systems-analyst.html
+  - module-01/final-build/13-1-6-reading-dataman-like-a-systems-analyst.html
+  - module-01/final-build/17-m1-lab-dataman-analyst-pass.html
+  - module-01/final-build/18-the-dataman-manual.html
+  # --- M2 ---
+  - module-02/final-build/01-module-2-overview.html
+  - module-02/final-build/02-m2-1-functional-nonfunctional-requirements.html
+  - module-02/final-build/03-m2-2-requirements-elicitation.html
+  - module-02/final-build/06-m2-simulation-stakeholder-elicitation-launch-page.html
+  - module-02/final-build/10-m2-3-dataman-elicitation-case-briefing.html
+  - module-02/final-build/04-m2-4-from-evidence-to-a-requirement.html
+  - module-02/final-build/07-requirement-repair-lab-instructions.html
+  - module-02/final-build/08-m2-5-requirements-quality-review.html
+  - module-02/final-build/16-m2-arcade-dataman-field-check.html
+  - module-02/final-build/05-dataman-requirements-register-assignment.html
+  - module-02/final-build/09-module-2-wrap-up-from-requirements-to-product-work.html
+  - module-02/student-facing/ask-the-next-question-instructions.md
+  - module-02/student-facing/classify-dataman-requirements-instructions.html
+  - module-02/student-facing/dataman-requirements-register-template.md
+  - module-02/student-facing/m2-stakeholder-elicitation-simulation-instructions.md
+  - module-02/student-facing/requirement-triage-lab-instructions.md
+  # --- M3 ---
+  - module-03/final-build/01-module-3-overview-from-requirements-to-product-work.html
+  - module-03/final-build/02-m3-1-from-requirement-to-user-story.html
+  - module-03/final-build/03-story-builder-lab-interactive.html
+  - module-03/final-build/04-m3-2-acceptance-criteria-how-will-we-know-it-works.html
+  - module-03/final-build/06-m3-3-backlog-decisions-size-dependencies-priority.html
+  - module-03/final-build/07-backlog-triage-what-moves-forward.html
+  - module-03/final-build/08-backlog-triage-decision-record.html
+  - module-03/final-build/09-product-owner-sprint-simulation.html
+  - module-03/final-build/10-product-owner-decision-record.html
+  - module-03/final-build/11-backlog-review-reconsider-your-product-decisions.html
+  - module-03/final-build/12-dataman-product-backlog.html
+  - module-03/final-build/13-module-3-wrap-up-from-product-work-to-design.html
+  - module-03/student-facing/dataman-product-backlog-template.md
+  - module-03/student-facing/m3-backlog-triage-record-template.md
+  - module-03/student-facing/m3-product-owner-decision-record-template.md
+  # --- M4 ---
+  - module-04/final-build/01-module-4-overview-from-product-work-to-build-ready-design.html
+  - module-04/final-build/02-design-for-implementation.html
+  - module-04/final-build/03-before-you-design-what-would-you-ask-first.html
+  - module-04/final-build/04-frame-the-investigation.html
+  - module-04/final-build/05-test-the-answer-flow.html
+  - module-04/final-build/06-test-the-memory-bank-and-retrieval.html
+  - module-04/final-build/07-m4-lab-evidence-record-assignment.html
+  - module-04/final-build/08-investigate-your-product-slice-design-studio.html
+  - module-04/final-build/09-design-and-build-text-only-prototype.html
+  - module-04/final-build/10-module-4-wrap-up-from-build-ready-design-to-flask-implementation.html
+  - module-04/templates/m4-design-investigation-record-template.md
+  - module-04/templates/m4-investigation-brief-template.md
+  - module-04/templates/m4-lab-evidence-record-template.md
+  # --- M5 ---
+  - module-05/final-build/01-module-5-overview-first-flask-implementation.html
+  - module-05/final-build/02-flask-from-the-outside-in.html
+  - module-05/final-build/03-map-your-prototype-to-flask.html
+  - module-05/final-build/04-run-change-inspect-revise-controlled-flask-build-lab.html
+  - module-05/final-build/05-run-your-first-flask-app-in-codespaces.html
+  - module-05/final-build/06-build-your-minimal-flask-application.html
+  - module-05/final-build/07-extend-your-flask-application-with-a-dataman-feature.html
+  - module-05/final-build/08-module-5-wrap-up-from-first-flask-implementation-to-sprint-1.html
+  - module-05/starter/minimal-flask-app/README.md
+  - module-05/starter/minimal-flask-app/app.py
+  - module-05/starter/minimal-flask-app/business_logic.py
+  - module-05/starter/minimal-flask-app/data_store.py
+  - module-05/starter/minimal-flask-app/requirements.txt
+  # --- M6 ---
+  - module-06/final-build/01-module-6-overview-sprint-1-working-as-a-pod.html
+  - module-06/final-build/02-m6-1-three-roles-one-increment.html
+  - module-06/final-build/03-m6-2-from-acceptance-criterion-to-executable-test.html
+  - module-06/final-build/04-test-writing-lab-make-one-criterion-fail-first.html
+  - module-06/final-build/05-m6-3-definition-of-done-a-standard-that-can-fail.html
+  - module-06/final-build/06-sprint-1-planning-commit-to-one-increment.html
+  - module-06/final-build/07-m6-4-reading-someone-elses-implementation.html
+  - module-06/final-build/08-code-review-lab-the-comparative-pass.html
+  - module-06/final-build/09-sprint-1-contribution.html
+  - module-06/final-build/10-code-review-given.html
+  - module-06/final-build/11-role-record.html
+  - module-06/final-build/12-sprint-1-review-account-for-your-role.html
+  - module-06/final-build/13-module-6-wrap-up-from-sprint-1-to-sprint-2.html
+  - module-06/student-facing/m6-default-sprint-scope.md
+  - module-06/student-facing/m6-definition-of-done-template.md
+  - module-06/student-facing/m6-sprint-retrospective-template.md
+  - module-06/student-facing/m6-working-agreement-template.md
+  # --- M7 ---
+  - module-07/final-build/01-module-7-overview-sprint-2-change-without-breaking-behavior.html
+  - module-07/final-build/02-m7-1-rotate-the-role-keep-the-practices.html
+  - module-07/final-build/03-m7-2-persistence-changes-the-system-boundary.html
+  - module-07/final-build/04-persistence-regression-lab-prove-what-must-survive.html
+  - module-07/final-build/05-sprint-2-planning-change-the-system-bound-the-increment.html
+  - module-07/final-build/06-m7-3-reading-regression-evidence.html
+  - module-07/final-build/07-migration-review-lab-what-broke-what-changed-what-is-unknown.html
+  - module-07/final-build/08-sprint-2-contribution.html
+  - module-07/final-build/09-code-review-given-sprint-2.html
+  - module-07/final-build/10-role-record-sprint-2.html
+  - module-07/final-build/11-sprint-2-review-demonstrate-what-survived-the-change.html
+  - module-07/final-build/12-module-7-wrap-up-from-product-delivery-to-capstone-planning.html
+  - module-07/student-facing/m7-sprint-retrospective-template.md
+  # --- M8 ---
+  - module-08/final-build/01-module-8-overview-build-the-capstone-handoff.html
+  - module-08/final-build/02-m8-1-audit-what-the-capstone-can-reuse.html
+  - module-08/final-build/04-m8-2-working-agreement-for-the-next-course.html
+  - module-08/final-build/05-product-handoff-decision.html
+  - module-08/final-build/06-m8-3-validate-the-backlog-and-design-evidence.html
+  - module-08/final-build/07-m8-4-seed-the-risk-register.html
+  - module-08/final-build/08-design-brief-and-design-consult-record.html
+  - module-08/final-build/09-capstone-handoff-package.html
+  - module-08/final-build/10-handoff-readiness-check.html
+  - module-08/final-build/11-capstone-handoff-pitch.html
+  - module-08/final-build/12-course-wrap-up-what-cts-285-hands-forward.html
+  - module-08/student-facing/m8-design-brief-template.md
+  - module-08/student-facing/m8-design-consult-record-template.md
+  - module-08/student-facing/m8-exit-checklist.md
+  - module-08/student-facing/m8-handoff-manifest-template.md
+  - module-08/student-facing/m8-risk-register-template.md
+  - module-08/student-facing/m8-working-agreement-template.md
+
+# Where each file lands. Ordered, first match wins, component-aware. Applied
+# to the upstream path. `reference/` below is a DESTINATION; `deny` is checked
+# against upstream paths only.
+map:
+  # The DataMan manual is the primary source for the whole course, so it is
+  # the always-on `corpus_index` window rather than part of module 1.
+  - {from: module-01/final-build/18-the-dataman-manual.html, to: reference/18-the-dataman-manual.html}
+  - {from: module-0-getting-started/final-build/, to: modules/m0/}
+  - {from: module-01/final-build/, to: modules/m1/}
+  - {from: module-02/final-build/, to: modules/m2/}
+  - {from: module-02/student-facing/, to: modules/m2/}
+  - {from: module-03/final-build/, to: modules/m3/}
+  - {from: module-03/student-facing/, to: modules/m3/}
+  - {from: module-04/final-build/, to: modules/m4/}
+  - {from: module-04/templates/, to: modules/m4/}
+  - {from: module-05/final-build/, to: modules/m5/}
+  - {from: module-05/starter/minimal-flask-app/, to: modules/m5/starter/}
+  - {from: module-06/final-build/, to: modules/m6/}
+  - {from: module-06/student-facing/, to: modules/m6/}
+  - {from: module-07/final-build/, to: modules/m7/}
+  - {from: module-07/student-facing/, to: modules/m7/}
+  - {from: module-08/final-build/, to: modules/m8/}
+  - {from: module-08/student-facing/, to: modules/m8/}
+
+# Canvas page bodies are HTML fragments; the corpus loader reads *.md only.
+# Starter code is fenced so it survives as code.
+transforms:
+  '.html': html-to-markdown
+  '.py': fence
+  '.txt': fence
+
+# Hard guard. A pattern ending "/" is a directory NAME matched at any depth;
+# any other pattern is matched against the file name and the whole path with
+# fnmatch (where "*" also crosses "/"). Checked against upstream paths, for
+# every listed path and every file under a listed directory.
+deny:
+  - build-guides/          # New Quiz / simulation / rubric build specs: correct answers, per-answer feedback
+  - instructor-guides/     # Norris's class scripts: facilitation and decision moments
+  - planning/              # governance, decisions, status: not student material
+  - reference/             # upstream-only: module-07/reference/ is the SQLite schema and reference data_store.py (M7 asks the student to write it)
+  - review-target/         # module-06 graded code-review target; its key is in build-guides/
+  - exemplars/             # module-06 samples of register and shape, "not assets"
+  - failure-variants/      # module-07 planted-defect lab targets
+  - binder/                # offline binder; holds cts285-answer-key.html
+  - assignments/           # module-04/05 assignment shells: duplicates of pages, plus rubrics
+  - assessments/           # module-04 assessments
+  - instructor-workflows/  # weekly delivery checklist for the instructor
+  - style/                 # Canvas house style and checker
+  - docs/                  # course-level docs, not student pages
+  - course-level/          # course-level deliverables
+  - resources/             # module-01 resources/ holds an unverified manual copy; the Canvas page is the verified one
+  - '*rubric*'             # graded-criteria text, even when it sits beside a student file
+  - '*answer-key*'         # keys of any kind
+  - '*-key.md'             # frontmatter `audience: instructor`
+  - 'M[0-9]-*.md'          # module architecture / lock records
+  - 00-START-HERE.md       # navigation for the builder
+  - 'module-??/README.md'  # generated Canvas build-order index. NOT 'module-*/README.md': "*" crosses "/" and would also deny the M5 starter README
+  - module-0-getting-started/README.md  # same, for module 0
+  - AGENTS.md              # repository governance
+  - CLAUDE.md              # repository governance
+  # The five retired M2 elicitation-case branch pages (m2-3a ... m2-3e). They
+  # hold the case reveals and are retired from Canvas, not deleted. Not
+  # matched by any pattern above, so named here.
+  - '*m2-3[a-e]-*'
