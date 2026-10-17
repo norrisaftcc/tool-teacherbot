@@ -158,6 +158,10 @@ The `cts285` skin is a Systems Analysis & Design tutor on `claude-haiku-5-5`
 from a vendored copy of the student-visible course pages. This section is the
 operator's side of it.
 
+**To test it before students use it, follow `docs/TESTING-CTS285.md`.** It runs
+from the free test suite through a local run, the behaviour banks and a hand test
+to the live checks below.
+
 > **Every step marked `[credentials]` needs access this repository's authoring
 > session did not have** (the Render dashboard or API, the Anthropic Console, a
 > live API key). Nothing below was run against a live service. The commands

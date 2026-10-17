@@ -13,6 +13,7 @@ directory does not exist — see `docs/historical/`.
 | `docs/registry/KEEP.md` | **Decision register.** What is frozen, what is still negotiating, and the backlog. Start here. K18 is the operative rule on what code the bot may quote — it is narrower than the persona's "never hand over a solution" reads, and `evals/csc134/m1.yaml` item `m1-03` guards it. K21 is the same question for the `cts285` skin, where the graded work is prose. |
 | `docs/adr/` | Why the code is shaped this way. 0001-0004 and 0006 Accepted, 0005 and 0007 Proposed. Each ADR's own header is authoritative; `docs/adr/README.md`'s index column is a copy and has drifted before. |
 | `system1-flask-chat/DEPLOY.md` | Operator runbook — env vars, redeploy, logs, rollback, suspend. |
+| `docs/TESTING-CTS285.md` | How to test the `cts285` skin before students use it, in five levels from the free suite to the live service, and where to record what a run finds. |
 
 ## What's where
 
