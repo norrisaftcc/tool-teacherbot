@@ -46,9 +46,13 @@ cohort shares one cache entry. Advance the week by setting
 |---|---|---|---|
 | `csc114` | Fundamentals of AI/ML | Sonnet | Finished. Being repointed — [#21](https://github.com/norrisaftcc/tool-teacherbot/issues/21) |
 | `csc134` | Introduction to Programming (C++) | Haiku 4.5 | Fall 2026 |
+| `cts285` | Systems Analysis & Design | Haiku 5.5 | Built, not deployed. Test login only — [ADR-0007](docs/adr/0007-serve-cts285-as-a-haiku-5-5-skin.md) |
 
-Passcodes are not published here. `csc134`'s is overridable via `CSC134_PASSCODE`
-so it can be rotated without a public commit.
+Passcodes are not published here, with one exception. `csc134`'s is overridable via
+`CSC134_PASSCODE` so it can be rotated without a public commit. `cts285` signs in with a
+username and a password, and its **documented test defaults are in this public repository**
+(`CTS285_USERNAME`, `CTS285_PASSWORD`). Set both in the dashboard before real students use it;
+see `system1-flask-chat/DEPLOY.md`, "CTS 285 skin".
 
 ## Layout
 
