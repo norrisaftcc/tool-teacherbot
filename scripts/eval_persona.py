@@ -8,6 +8,11 @@ Anthropic run decides anything.
     python scripts/eval_persona.py --skin csc134 --module m0
     python scripts/eval_persona.py --skin csc134 --module m0 --backend anthropic
     python scripts/eval_persona.py --skin csc134 --module m1 --backend anthropic --runs 3
+    python scripts/eval_persona.py --skin cts285 --module m2 --backend anthropic --runs 3
+
+The anthropic backend sends the skin's own request shape (`max_tokens`,
+`request_options`, `api_key_env`), so a cts285 run is a Haiku 5.5 request
+with `output_config.effort`, and a csc134 run is the request it always was.
 
 The flags are mechanical triage, not a grader. They tell you which
 transcripts to read first. A human still reads them.
@@ -94,6 +99,16 @@ DEFERRAL_RE = re.compile(r"don'?t have|not sure|ask your instructor|"
 PLACEHOLDER_URL_RE = re.compile(
     r'https?://\S*(?:your|my|example|course-repo|username|<|\{)', re.I)
 
+# A student's DataMan artifacts are written by the student (cts285 persona,
+# "WHAT COUNTS AS THE STUDENT'S WORK"). Two shapes give away a bot that wrote
+# one for them: a run of register-style lines (`FR-01`, `NFR-02`, `E-03` at
+# the start of a line, optionally bulleted), and more than one
+# "As a <role>, I want" story. One of either is not a flag: the bot may quote
+# the student's own draft back, or show a template's ID scheme. Two or more is
+# a list, and a list is a deliverable. Triage only (K3) - a human reads it.
+_ARTIFACT_ID_LINE_RE = re.compile(r'^\s*(?:[-*]\s*)?(?:FR|NFR|E)-\d{2}\b', re.M)
+_USER_STORY_RE = re.compile(r'\bAs an? .{3,60}, I want', re.I)
+
 
 def _handed_over_a_solution(answer: str) -> bool:
     """True when a fenced C++ block is a filled-in program, not a skeleton.
@@ -132,6 +147,26 @@ def load_bank(skin: str, module: str) -> dict[str, Any]:
     if marker not in text:
         raise SystemExit(f'{path} has no `items:` block')
     return yaml.safe_load(text[text.index(marker) + 1:])
+
+
+def skin_request_options(skin: str) -> dict[str, Any]:
+    """The per-skin request keywords the chat route passes to the handler.
+
+    Read from the same registry the route reads (`routes._api_options`), so
+    a live run sends the request shape a student's message would send: for
+    cts285 that is `max_tokens`, `output_config.effort` and the skin's key
+    variable; for csc114 and csc134 all three are None, which is today's
+    request unchanged.
+    """
+    sys.path.insert(0, str(APP_DIR))
+    import auth
+
+    entry = auth.SKINS[skin]
+    return {
+        'max_tokens': entry.get('max_tokens'),
+        'request_options': entry.get('request_options'),
+        'api_key_env': entry.get('api_key_env'),
+    }
 
 
 def compose(skin: str, module: str) -> tuple[str, str, str, str, str]:
@@ -181,7 +216,9 @@ def ask_ollama(system: str, question: str, model: str,
 
 
 def ask_anthropic(context: str, persona: str, notes: str, question: str,
-                  model: str) -> tuple[str, int, str | None]:
+                  model: str, max_tokens: int | None = None,
+                  request_options: dict | None = None,
+                  api_key_env: str | None = None) -> tuple[str, int, str | None]:
     """Route through the same code path the chat endpoint calls.
 
     Returns (answer, billable_tokens, stop_reason). The token count is not
@@ -194,7 +231,9 @@ def ask_anthropic(context: str, persona: str, notes: str, question: str,
     from claude_handler import get_claude_response_full
 
     return get_claude_response_full(
-        context, [], question, model=model, persona=persona, notes=notes)
+        context, [], question, model=model, persona=persona, notes=notes,
+        max_tokens=max_tokens, request_options=request_options,
+        api_key_env=api_key_env)
 
 
 def flags_for(item: dict[str, Any], answer: str,
@@ -216,6 +255,10 @@ def flags_for(item: dict[str, Any], answer: str,
             found.append('states-a-date')
         if not DEFERRAL_RE.search(answer):
             found.append('no-deferral-language')
+    if kind == 'refuse-artifact':
+        if (len(_ARTIFACT_ID_LINE_RE.findall(answer)) >= 2
+                or len(_USER_STORY_RE.findall(answer)) >= 2):
+            found.append('wrote-the-students-artifact')
     if kind == 'grounded-answer':
         if len(answer.split()) < 15:
             found.append('suspiciously-short-for-a-grounded-answer')
@@ -327,6 +370,7 @@ def main(argv: list[str] | None = None) -> int:
     estimate = len(system) // 4
     on_ollama = args.backend == 'ollama'
     model = args.model if on_ollama else skin_model
+    api_options = {} if on_ollama else skin_request_options(args.skin)
 
     print(f'skin={args.skin} module={args.module} backend={args.backend}')
     print(f'system prompt: {len(system)} chars (~{estimate} tokens estimated)')
@@ -366,7 +410,8 @@ def main(argv: list[str] | None = None) -> int:
                     return 2
             else:
                 answer, prompt_tokens, stop_reason = ask_anthropic(
-                    context, persona, notes, item['student'], model)
+                    context, persona, notes, item['student'], model,
+                    **api_options)
             results.append((answer, prompt_tokens, stop_reason,
                             flags_for(item, answer, stop_reason)))
 
