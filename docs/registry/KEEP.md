@@ -384,6 +384,48 @@ implements the opposite of what that register says.
 *Status:* ADR-0005, Proposed. Tracked in #21. Recorded here so it stops being
 reopened.
 
+### K21 — The CTS 285 graded-work line: the tutor quotes what the course gives and never writes what the student submits
+
+Proposed 2026-10-17 in ADR-0007. **Negotiating until the course lead confirms it** (the instructional
+lead owns what counts as a student's graded work in CTS 285, not this repository). The tutor ships on
+this wording in the meantime.
+
+The line, in the `cts285` persona's *"WHAT COUNTS AS THE STUDENT'S WORK"* section:
+
+- **The tutor may quote** what the course gives: the blank templates with their `[bracketed prompts]`,
+  page instructions and definitions, the worked examples and "Compare your thinking" reveals on the
+  pages, the DataMan manual, the M5 starter application, and the required file paths and ID schemes
+  (`E-01`, `FR-01`, `NFR-01`).
+- **The tutor does not write** anything the student submits about their own DataMan work: evidence
+  entries, requirement statements, user stories, acceptance criteria, backlog decisions and priority
+  reasons, decision records, the M4 investigation brief and build-readiness package, the Definition
+  of Done, retrospectives, code reviews the student gives, role records, the risk register, the design
+  brief and the handoff pitch. It also does not write feature, test or persistence code beyond the
+  starter, and it never answers a pasted quiz, "decision check" or knowledge-check item.
+- **The shape of the help is not a wall.** Ask the next question, point at the page section and
+  criterion, name one weakness in a draft and the question that would fix it, and teach with a
+  *different* system. A student out of time leaves with a plan they wrote.
+
+This is K18 for a course where almost every graded item is prose rather than code. K18 is the
+precedent for the shape: *quoting what the course hands over is the job; the deliverable is not the
+bot's to write*, and a refusal that the course's own pages contradict is an ill-posed rule rather than
+an unstable model (`m0-02`).
+
+The persona wording is the **second** control, not the first. The first is that answer keys,
+rubrics, build guides, instructor guides and the retired case pages are never vendored: a file that is
+not in the prompt cannot be leaked by a persona that fails. K2 is the precedent, and ADR-0007 section 2
+is the mechanism (`deny` raises and writes nothing).
+
+*Status:* ADR-0007, Proposed. Open until the course lead answers (ADR-0007, Consequences).
+
+*Evidence:* `system1-flask-chat/context/cts285_persona.md`; `scripts/cts285_manifest.yaml` (`deny:`);
+`tests/test_cts285_corpus.py` (the denied paths, checked on disk); `evals/cts285/` (the behaviour
+bank; K3 applies, so its flags are triage and not a verdict); K18 and K2 as precedent.
+
+*Rejected so far:* **refuse anything the student might submit** (a wall: the course's own pages hand
+the student templates and worked examples to copy, and refusing to quote them contradicts the pages,
+which is the `m0-02` failure). **Enumerating quotable pages** (stale the first time the sync runs).
+
 ---
 
 ## Backlog
@@ -396,7 +438,7 @@ share one thread.
 | # | Item | Evidence |
 |---|---|---|
 | ~~[B1](https://github.com/norrisaftcc/tool-teacherbot/issues/23)~~ | ~~**Alembic / Flask-Migrate**~~ — **done**, ADR-0006. Landed before the capstone rather than after, and on a fresh database so the baseline needed no hand-run `stamp`. | ADR-0006 |
-| [B2](https://github.com/norrisaftcc/tool-teacherbot/issues/24) | **SHA-pin the corpus sync.** `fetch_upstream` uses `git clone --branch`, which cannot take a SHA, so every manifest tracks a moving branch and no provenance SHA is recorded. Prerequisite for ADR-0005. | `scripts/sync_course_corpus.py:33-38` |
+| [B2](https://github.com/norrisaftcc/tool-teacherbot/issues/24) | **SHA-pin the corpus sync.** `fetch_upstream` uses `git clone --branch`, which cannot take a SHA, so every manifest tracks a moving branch and no provenance SHA is recorded. Prerequisite for ADR-0005. **Partly addressed 2026-10-17 (ADR-0007):** a sync run with `--source` reads a local clone and records the SHA it read in `context/<slug>/_provenance.txt`. A sync that still clones a branch records nothing, so csc114 and csc134 are unchanged. | `scripts/sync_course_corpus.py:33-38`; `scripts/sync_course_corpus.py` (`--source`, `local_source_sha`) |
 | ~~[B3](https://github.com/norrisaftcc/tool-teacherbot/issues/25)~~ | ~~**Pin `marked` and add SRI**, or vendor it into `static/js/`.~~ — **done** in #41, which vendored `marked@18.0.7` and dropped the CDN tag; #42 then repointed the XSS check at the vendored bytes rather than the npm build. The row outlived its fix and was caught by a gap analysis rather than by anyone reading the register — the same drift this file exists to prevent, one level up. | `static/js/marked.umd.js`; `system1-flask-chat/tests/js/render_check.mjs` |
 | [B4](https://github.com/norrisaftcc/tool-teacherbot/issues/26) | **Admin auth is a URL query parameter.** `?password=…` lands in Render access logs and browser history. Replace with a POST form. Deferred by issue #2 and never tracked. | `system1-flask-chat/routes.py:271` |
 | [B5](https://github.com/norrisaftcc/tool-teacherbot/issues/27) | **No CSRF protection.** `flask-wtf` is not in requirements. Deferred by issue #2 and never tracked. | `system1-flask-chat/requirements.txt` |
@@ -414,3 +456,4 @@ share one thread.
 | [B17](https://github.com/norrisaftcc/tool-teacherbot/issues/52) | **Propose a rule: an ADR is accepted before its implementation is cited as settled.** ADR-0006 shipped its migrations, `preDeployCommand`, and tests on 2026-07-29 and was cited as decided by `CLAUDE.md`, `DEPLOY.md`, six code comments, superseded K6 and Frozen K14 — while its own header still read `Proposed` until 2026-07-30. Under the register's own rule a Proposed ADR can neither supersede a frozen entry nor be evidence for one. Not frozen here because it is a process rule about how this register is maintained, and that is a negotiation rather than a cleanup. **Strengthened 2026-08-06:** there are now four instances, not one — B3, B10, ADR-0004 and ADR-0006, each caught 7-8 days late by gap analysis. The issue proposes a test on the ADR index as the cheap half. | `docs/adr/0006-…` acceptance note; `docs/registry/KEEP.md:97` (K6), `:199` (K14); #51 |
 | [B18](https://github.com/norrisaftcc/tool-teacherbot/issues/54) | **`stash@{0}` holds 454 lines across eleven never-committed files** — ten `.claude/agents/*.md` definitions and `.claude/launch.json`, based on `f6d2fb7` (2026-07-25). Tooling configuration, no application code, so it blocks nothing. Recorded because K20's audit swept worktrees and branches but not the stash, and this is the largest never-committed body of work in the repo. Recover, drop, or export-and-drop — then amend K20 either way. | `git stash show --stat stash@{0}`; K20 |
 | [B19](https://github.com/norrisaftcc/tool-teacherbot/issues/55) | **Sixteen `origin/*` branches survive their merged PRs**, plus two local. Four of the sixteen are not ancestors of `main` because their PRs were squash-merged, so `git branch --merged` will not list them. No branch has ever been pruned here. Zero risk either way; the cost is that real dangling state is harder to spot in the noise, which is the condition that produced B18. Resolve B18 first — `csc134/eval-first-haiku-run` is the stash's base. | `git branch -a --sort=-committerdate`; PRs #18, #39, #40, #41 |
+| B20 *(unfiled)* | **Seat identity and per-seat budget for `cts285`.** The skin has one shared username and password and one cohort budget, so transcripts are keyed to the group, one student can spend the cohort's budget, and K9/K10 are unmet for it. The client still supplies the history, so forgery is possible inside the `history_messages` window. This is ADR-0004 (Accepted, not implemented: no `Seat` or `Turn` tables) applied to a skin that needs it sooner than the capstone does. Needs the migration and the staging rehearsal of K15. | ADR-0007 Consequences; ADR-0004 sections 1, 2 and 5; `system1-flask-chat/auth.py` (`SKINS['cts285']`) |
