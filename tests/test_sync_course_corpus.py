@@ -446,3 +446,434 @@ paths:
 
     assert rc == 0
     assert (target / 'only.md').read_text() == '# from CLI\n'
+
+
+# ---------------------------------------------------------------------------
+# Work package A1: local --source, map, transforms, deny, provenance.
+# Synthetic fixtures only. Nothing below reads a real course repository.
+# ---------------------------------------------------------------------------
+
+import subprocess
+
+from scripts.sync_course_corpus import (
+    apply_map,
+    deny_match,
+    fence_text,
+    html_to_markdown,
+    local_source_sha,
+)
+
+_PAGE = """
+<style>.x { color: red }</style>
+<script>var leaked = "SCRIPT-BODY";</script>
+<h2 style="color:#000">Page&nbsp;title &amp; more</h2>
+<div style="padding:12px"><p style="margin:0">First <strong>bold</strong> and <em>soft</em> text with <code>x = 1</code>.</p></div>
+<ul><li>apple</li><li>pear
+  <ul><li>nested</li></ul></li></ul>
+<ol><li>step one</li><li>step two</li></ol>
+<details style="border:1px solid"><summary>Show the hint</summary><p>Hint body text.</p></details>
+<table><tr><th>Name</th><th>Role</th></tr><tr><td>Ana</td><td>Analyst</td></tr></table>
+<p><a href="https://example.com/a" style="color:blue">live link</a>
+ <a href="https://example.com/LINK-PENDING-x">pending link</a>
+ <a href="/relative/page">relative link</a></p>
+<pre>line one
+    indented   line</pre>
+<h3>Next</h3>
+
+
+
+<p>Last.</p>
+"""
+
+
+def test_html_to_markdown_converts_structure_and_strips_noise():
+    md = html_to_markdown(_PAGE)
+
+    assert md.startswith('## Page title & more\n')
+    assert '### Next' in md
+    assert 'First **bold** and *soft* text with `x = 1`.' in md
+    # lists, including numbering and nesting
+    assert '- apple' in md and '- pear' in md and '  - nested' in md
+    assert '1. step one' in md and '2. step two' in md
+    # a reveal keeps its summary (bold) and its body: student-visible
+    assert '**Show the hint**' in md and 'Hint body text.' in md
+    assert md.index('**Show the hint**') < md.index('Hint body text.')
+    # table cells joined by ' | '
+    assert 'Name | Role' in md and 'Ana | Analyst' in md
+    # links: absolute http(s) kept, LINK-PENDING and relative reduced to text
+    assert '[live link](https://example.com/a)' in md
+    assert 'pending link' in md and 'LINK-PENDING' not in md
+    assert 'relative link' in md and '/relative/page' not in md
+    # <pre> keeps its whitespace inside a fence
+    assert '```\nline one\n    indented   line\n```' in md
+    # noise gone
+    for needle in ('style', 'color', 'padding', 'SCRIPT-BODY', 'leaked', '<', '&nbsp;', '\xa0'):
+        assert needle not in md, needle
+    # at most one blank line anywhere
+    assert '\n\n\n' not in md
+    assert md.endswith('\n') and not md.endswith('\n\n')
+
+
+def test_html_to_markdown_never_emits_a_style_attribute_for_any_tag():
+    page = '<h2 style="a:b">T</h2><p style="a:b">x</p><span style="a:b">y</span><li style="a:b">z</li>'
+    assert 'style' not in html_to_markdown(page)
+    assert 'a:b' not in html_to_markdown(page)
+
+
+def test_fence_wraps_with_language_and_survives_backticks_in_content():
+    py = fence_text('print("hi")\n', '.py')
+    assert py == '```python\nprint("hi")\n```\n'
+    assert fence_text('plain', '.txt').startswith('```text\n')
+    tricky = fence_text('a\n```\ninner\n```\n', '.py')
+    # The fence must be longer than the longest run inside the content, or
+    # the content closes its own fence and the rest escapes as prose.
+    assert tricky.startswith('````python\n') and tricky.rstrip('\n').endswith('\n````')
+
+
+@pytest.mark.parametrize('dest, rules, expected', [
+    ('module-02/a.html', [{'from': 'module-02/', 'to': 'modules/m2/'}], 'modules/m2/a.html'),
+    # component boundary: module-02x is a different directory
+    ('module-02x/a.html', [{'from': 'module-02/', 'to': 'modules/m2/'}], 'module-02x/a.html'),
+    ('module-02/x/a.html', [{'from': 'module-02', 'to': 'm2'}], 'm2/x/a.html'),
+    # first match wins, so the specific rule must be listed first
+    ('module-01/final-build/18-manual.html',
+     [{'from': 'module-01/final-build/18-manual.html', 'to': 'reference/18-manual.html'},
+      {'from': 'module-01/final-build/', 'to': 'modules/m1/'}],
+     'reference/18-manual.html'),
+    ('module-01/final-build/02-x.html',
+     [{'from': 'module-01/final-build/18-manual.html', 'to': 'reference/18-manual.html'},
+      {'from': 'module-01/final-build/', 'to': 'modules/m1/'}],
+     'modules/m1/02-x.html'),
+    ('other/a.md', [{'from': 'module-02/', 'to': 'm2/'}], 'other/a.md'),
+    ('a.md', [], 'a.md'),
+])
+def test_apply_map(dest, rules, expected):
+    assert apply_map(dest, rules) == expected
+
+
+def test_map_and_transforms_through_apply_manifest(tmp_path):
+    up = tmp_path / 'up'
+    (up / 'module-02' / 'final-build').mkdir(parents=True)
+    (up / 'module-02x').mkdir()
+    (up / 'module-02' / 'final-build' / '01-page.html').write_text('<h2>One</h2><p>hi</p>')
+    (up / 'module-02x' / 'keep.md').write_text('# keep\n')
+    (up / 'starter').mkdir()
+    (up / 'starter' / 'app.py').write_text('print(1)\n')
+    (up / 'starter' / 'notes.txt').write_text('a note\n')
+    target = tmp_path / 'target'
+    manifest = {
+        'strip_prefix': '',
+        'paths': ['module-02/final-build/', 'module-02x/keep.md', 'starter/app.py',
+                  'starter/notes.txt'],
+        'map': [{'from': 'module-02/final-build/', 'to': 'modules/m2/'},
+                {'from': 'starter/', 'to': 'modules/m5/starter/'}],
+        'transforms': {'.html': 'html-to-markdown', '.py': 'fence', '.txt': 'fence'},
+    }
+    summary = apply_manifest(manifest, up, target)
+
+    assert (target / 'modules/m2/01-page.md').read_text() == '## One\n\nhi\n'
+    assert (target / 'modules/m5/starter/app.py.md').read_text() == '```python\nprint(1)\n```\n'
+    assert (target / 'modules/m5/starter/notes.txt.md').read_text() == '```text\na note\n```\n'
+    # untransformed and unmapped (module-02x is not module-02)
+    assert (target / 'module-02x/keep.md').read_text() == '# keep\n'
+    assert summary['transformed'] == 3 and summary['files'] == 4
+
+
+def test_map_applies_after_strip_prefix(tmp_path):
+    up = tmp_path / 'up'
+    (up / 'root' / 'sub').mkdir(parents=True)
+    (up / 'root' / 'sub' / 'a.md').write_text('a\n')
+    target = tmp_path / 'target'
+    apply_manifest({'strip_prefix': 'root/', 'paths': ['root/sub/'],
+                    'map': [{'from': 'sub/', 'to': 'moved/'}]}, up, target)
+    assert (target / 'moved' / 'a.md').exists()
+
+
+def test_two_sources_mapped_to_one_destination_raise(tmp_path):
+    up = tmp_path / 'up'
+    (up / 'a').mkdir(parents=True)
+    (up / 'b').mkdir()
+    (up / 'a' / 'x.md').write_text('a\n')
+    (up / 'b' / 'x.md').write_text('b\n')
+    target = tmp_path / 'target'
+    manifest = {'paths': ['a/x.md', 'b/x.md'],
+                'map': [{'from': 'a/', 'to': 'm/'}, {'from': 'b/', 'to': 'm/'}]}
+    with pytest.raises(ValueError, match='one destination'):
+        apply_manifest(manifest, up, target)
+    assert not list(target.rglob('*'))
+
+
+def test_substitutions_run_on_transformed_output(tmp_path):
+    up = tmp_path / 'up'
+    up.mkdir()
+    (up / 'p.html').write_text('<p>see PLANNING-DOC for more</p>')
+    target = tmp_path / 'target'
+    summary = apply_manifest(
+        {'paths': ['p.html'], 'transforms': {'.html': 'html-to-markdown'},
+         'substitutions': [{'pattern': 'PLANNING-DOC', 'replace': 'the module page'}]},
+        up, target)
+    assert (target / 'p.md').read_text() == 'see the module page for more\n'
+    assert summary['rewrites'] == 1
+
+
+# -- deny --------------------------------------------------------------------
+
+_DENY = ['build-guides/', 'instructor-guides/', 'reference/', '*rubric*', '*-key.md',
+         'M[0-9]-*.md', 'module-*/README.md', 'AGENTS.md']
+
+
+def _deny_tree(tmp_path: Path) -> Path:
+    up = tmp_path / 'up'
+    for d in ('module-02/final-build', 'module-02/build-guides', 'module-07/reference',
+              'module-09/a/b/build-guides/deep', 'module-02/student-facing'):
+        (up / d).mkdir(parents=True)
+    (up / 'module-02/final-build/01-page.html').write_text('<h2>ok</h2>')
+    (up / 'module-02/student-facing/m2-template.md').write_text('# student\n')
+    (up / 'module-02/build-guides/quiz-build.md').write_text('## Question 1 — x\n')
+    (up / 'module-07/reference/schema.md').write_text('answers\n')
+    (up / 'module-09/a/b/build-guides/deep/guide.md').write_text('deep\n')
+    (up / 'module-02/M2-STAGE.md').write_text('# arch\n')
+    (up / 'module-02/README.md').write_text('# readme\n')
+    (up / 'module-02/final-build/grading-rubric.md').write_text('# rubric\n')
+    (up / 'module-02/final-build/q-key.md').write_text('# key\n')
+    (up / 'AGENTS.md').write_text('# agents\n')
+    return up
+
+
+def test_deny_list_is_nonempty_and_cases_exist():
+    # An empty parametrize list is a silent pass. Pin the size.
+    assert len(_DENY) >= 8
+
+
+@pytest.mark.parametrize('listed', [
+    'module-02/build-guides/quiz-build.md',        # directly listed file
+    'module-02/build-guides/',                     # listed denied directory
+    'module-02/',                                  # file inside a listed directory
+    'module-09/',                                  # build-guides/ nested two levels down
+    'module-09/a/b/build-guides/deep/guide.md',    # nested, listed directly
+    'module-07/reference/schema.md',               # directory-name pattern, other dir
+    'module-02/M2-STAGE.md',                       # filename glob
+    'module-02/README.md',                         # whole-path glob
+    'module-02/final-build/grading-rubric.md',     # *rubric*
+    'module-02/final-build/q-key.md',              # *-key.md
+    'AGENTS.md',                                   # bare filename
+])
+def test_deny_raises_and_writes_nothing(tmp_path, listed):
+    up = _deny_tree(tmp_path)
+    target = tmp_path / 'target'
+    target.mkdir()
+    # Put an allowed, earlier path in front: it must not be written either.
+    manifest = {'paths': ['module-02/final-build/01-page.html', listed], 'deny': _DENY}
+    with pytest.raises(ValueError, match='denied path in manifest'):
+        apply_manifest(manifest, up, target)
+    assert list(target.rglob('*')) == []
+
+
+def test_deny_does_not_delete_existing_files_when_it_raises(tmp_path):
+    up = _deny_tree(tmp_path)
+    target = tmp_path / 'target'
+    target.mkdir()
+    (target / 'old.md').write_text('keep me\n')
+    with pytest.raises(ValueError, match='denied path in manifest'):
+        apply_manifest({'paths': ['module-02/build-guides/quiz-build.md'], 'deny': _DENY},
+                       up, target)
+    assert (target / 'old.md').read_text() == 'keep me\n'
+
+
+def test_deny_allows_the_student_facing_file_it_must_not_confuse_with_m2_arch(tmp_path):
+    """`M[0-9]-*.md` is case-sensitive: the student template `m2-template.md`
+    is not the architecture record `M2-STAGE.md`."""
+    up = _deny_tree(tmp_path)
+    target = tmp_path / 'target'
+    apply_manifest({'paths': ['module-02/student-facing/m2-template.md'], 'deny': _DENY},
+                   up, target)
+    assert (target / 'module-02/student-facing/m2-template.md').exists()
+
+
+def test_deny_checks_upstream_path_not_the_mapped_destination(tmp_path):
+    """`reference/` is both a denied upstream directory and a destination
+    the manifest maps one page into. Only the upstream side is checked."""
+    up = tmp_path / 'up'
+    (up / 'module-01/final-build').mkdir(parents=True)
+    (up / 'module-01/final-build/18-manual.html').write_text('<h2>Manual</h2>')
+    target = tmp_path / 'target'
+    manifest = {'paths': ['module-01/final-build/18-manual.html'], 'deny': _DENY,
+                'map': [{'from': 'module-01/final-build/18-manual.html',
+                         'to': 'reference/18-manual.html'}],
+                'transforms': {'.html': 'html-to-markdown'}}
+    apply_manifest(manifest, up, target)
+    assert (target / 'reference/18-manual.md').read_text() == '## Manual\n'
+
+
+def test_deny_refuses_dotdot_paths(tmp_path):
+    up = _deny_tree(tmp_path)
+    target = tmp_path / 'target'
+    target.mkdir()
+    with pytest.raises(ValueError, match=r'\.\.'):
+        apply_manifest({'paths': ['module-02/final-build/../build-guides/quiz-build.md'],
+                        'deny': _DENY}, up, target)
+    assert list(target.rglob('*')) == []
+
+
+@pytest.mark.parametrize('rel, is_dir, expected', [
+    ('a/build-guides/x.md', False, 'build-guides/'),
+    ('a/b/c/build-guides/d/e/x.md', False, 'build-guides/'),
+    ('a/build-guides', True, 'build-guides/'),
+    # a FILE named like a denied directory is not a directory component
+    ('a/build-guides', False, None),
+    ('a/build-guides-extra/x.md', False, None),
+    ('a/b/x-key.md', False, '*-key.md'),
+    ('a/M3-ARCH.md', False, 'M[0-9]-*.md'),
+    ('a/m3-student.md', False, None),
+    ('a/ok.md', False, None),
+])
+def test_deny_match(rel, is_dir, expected):
+    patterns = ['build-guides/', '*-key.md', 'M[0-9]-*.md']
+    assert deny_match(rel, patterns, is_dir) == expected
+
+
+# -- local --source ----------------------------------------------------------
+
+def _git(cwd: Path, *args: str) -> str:
+    env = {'GIT_AUTHOR_NAME': 't', 'GIT_AUTHOR_EMAIL': 't@example.com',
+           'GIT_COMMITTER_NAME': 't', 'GIT_COMMITTER_EMAIL': 't@example.com',
+           'HOME': str(cwd), 'PATH': __import__('os').environ['PATH']}
+    return subprocess.run(['git', '-C', str(cwd), *args], check=True, capture_output=True,
+                          text=True, env=env).stdout.strip()
+
+
+def _local_repo(tmp_path: Path) -> Path:
+    repo = tmp_path / 'local_upstream'
+    (repo / 'root').mkdir(parents=True)
+    (repo / 'root' / 'only.md').write_text('# local\n')
+    (repo / 'other.md').write_text('# other\n')
+    _git(repo, 'init', '-q')
+    _git(repo, 'add', '-A')
+    _git(repo, 'commit', '-q', '-m', 'init')
+    return repo
+
+
+def _write_manifest(tmp_path: Path, target: Path, extra: str = '') -> Path:
+    path = tmp_path / 'm.yaml'
+    path.write_text(f"""
+upstream: https://github.com/example/private
+ref: main
+target: {target}
+strip_prefix: root/
+paths:
+  - root/only.md
+{extra}""")
+    return path
+
+
+def test_source_uses_local_checkout_and_never_clones(tmp_path):
+    repo = _local_repo(tmp_path)
+    sha = _git(repo, 'rev-parse', 'HEAD')
+    target = tmp_path / 'vendored'
+    manifest = _write_manifest(tmp_path, target)
+    with patch.object(sync_mod, 'fetch_upstream') as fetch, \
+            patch.object(sync_mod.subprocess, 'run', wraps=sync_mod.subprocess.run) as run:
+        rc = sync_mod.main(['--manifest', str(manifest), '--source', str(repo)])
+    assert rc == 0
+    fetch.assert_not_called()
+    assert not any(c.args and 'clone' in c.args[0] for c in run.call_args_list)
+    assert (target / 'only.md').read_text() == '# local\n'
+    prov = (target / '_provenance.txt').read_text()
+    assert f'source_sha: {sha}' in prov and len(sha) == 40
+    assert 'upstream: https://github.com/example/private' in prov
+    assert 'manifest: ' in prov
+
+
+def test_source_rejects_uncommitted_change_under_a_manifest_path(tmp_path):
+    repo = _local_repo(tmp_path)
+    (repo / 'root' / 'only.md').write_text('# edited, not committed\n')
+    target = tmp_path / 'vendored'
+    manifest = _write_manifest(tmp_path, target)
+    with patch.object(sync_mod, 'fetch_upstream') as fetch:
+        with pytest.raises(ValueError, match='uncommitted changes'):
+            sync_mod.main(['--manifest', str(manifest), '--source', str(repo)])
+    fetch.assert_not_called()
+    assert not target.exists() or not list(target.rglob('*'))
+
+
+def test_source_rejects_untracked_file_under_a_manifest_path(tmp_path):
+    repo = _local_repo(tmp_path)
+    (repo / 'root' / 'new.md').write_text('untracked\n')
+    with pytest.raises(ValueError, match='uncommitted changes'):
+        local_source_sha(repo, ['root/'])
+
+
+def test_source_ignores_dirt_outside_manifest_paths(tmp_path):
+    repo = _local_repo(tmp_path)
+    (repo / 'other.md').write_text('# dirty but not listed\n')
+    assert len(local_source_sha(repo, ['root/only.md'])) == 40
+
+
+def test_source_rejects_a_directory_that_is_not_a_git_repo(tmp_path):
+    plain = tmp_path / 'plain'
+    plain.mkdir()
+    with pytest.raises(ValueError, match='not a git repository'):
+        local_source_sha(plain, ['x'])
+
+
+def test_source_rejects_a_subdirectory_of_a_repo(tmp_path):
+    repo = _local_repo(tmp_path)
+    with pytest.raises(ValueError, match='root of a git repository'):
+        local_source_sha(repo / 'root', ['only.md'])
+
+
+def test_provenance_survives_straggler_deletion(tmp_path):
+    up = tmp_path / 'up'
+    up.mkdir()
+    (up / 'a.md').write_text('a\n')
+    target = tmp_path / 'target'
+    target.mkdir()
+    (target / 'stale.md').write_text('stale\n')
+    (target / 'sub').mkdir()
+    (target / 'sub' / 'stale2.md').write_text('stale\n')
+    summary = apply_manifest({'paths': ['a.md']}, up, target,
+                             provenance={'source_sha': 'a' * 40, 'upstream': 'u'})
+    assert (target / '_provenance.txt').read_text() == f"source_sha: {'a' * 40}\nupstream: u\n"
+    assert not (target / 'stale.md').exists() and not (target / 'sub').exists()
+    assert summary['files'] == 1          # provenance is not counted as corpus
+    # a second sync keeps it too
+    apply_manifest({'paths': ['a.md']}, up, target, provenance={'source_sha': 'b' * 40})
+    assert ('b' * 40) in (target / '_provenance.txt').read_text()
+
+
+def test_old_manifest_round_trips_with_no_provenance_and_no_new_files(tmp_path):
+    """A manifest with none of map/transforms/deny and no --source behaves
+    exactly as before: no _provenance.txt, same summary keys."""
+    manifest = tmp_path / 'm.yaml'
+    target = tmp_path / 'vendored'
+    manifest.write_text(f"""
+upstream: https://github.com/example/anything
+ref: main
+target: {target}
+strip_prefix: root/
+paths:
+  - root/only.md
+""")
+
+    def fake_fetch(url, ref, dest):
+        (dest / 'root').mkdir(parents=True)
+        (dest / 'root' / 'only.md').write_text('# old path\n')
+
+    with patch.object(sync_mod, 'fetch_upstream', side_effect=fake_fetch):
+        assert sync_mod.main(['--manifest', str(manifest)]) == 0
+    assert sorted(p.name for p in target.rglob('*')) == ['only.md']
+
+
+def test_cloned_modern_manifest_also_records_provenance(tmp_path):
+    """A manifest using deny/map/transforms gets provenance even through the
+    clone path, so the corpus always says where it came from."""
+    repo = _local_repo(tmp_path)
+    target = tmp_path / 'vendored'
+    manifest = _write_manifest(tmp_path, target, extra="deny:\n  - build-guides/\n")
+
+    def fake_fetch(url, ref, dest):
+        subprocess.run(['git', 'clone', '-q', str(repo), str(dest)], check=True)
+
+    with patch.object(sync_mod, 'fetch_upstream', side_effect=fake_fetch):
+        assert sync_mod.main(['--manifest', str(manifest)]) == 0
+    assert _git(repo, 'rev-parse', 'HEAD') in (target / '_provenance.txt').read_text()
