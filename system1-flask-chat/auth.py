@@ -10,15 +10,18 @@ vendored on disk and out of the prompt.
 """
 from __future__ import annotations
 
+import hmac
 import logging
 import os
 from pathlib import Path
 from typing import TypedDict
 
+from models import skin_budget_from_env, validate_skin_budget
+
 CONTEXT_DIR = Path(__file__).parent / 'context'
 
 
-class Skin(TypedDict):
+class _SkinRequired(TypedDict):
     password: str
     model: str
     clearance: str            # kept for DB Group.clearance_level compat
@@ -31,6 +34,22 @@ class Skin(TypedDict):
     corpus_index: list[str]   # always-on paths under corpus_dir (file or dir)
     active_module: str | None  # the module *id* currently in the window
     module_paths: list[str]   # '{module}' templates expanded per active_module
+
+
+class Skin(_SkinRequired, total=False):
+    """Required keys above; optional keys here.
+
+    Every optional key is opt-in and omission means "behave exactly as
+    before", so csc114 and csc134 carry none of them.
+    """
+    username: str             # login also asks for this; omitted = passcode-only
+    chrome: str               # 'neutral' hides the AlgoCratic framing in templates
+    max_tokens: int           # per-skin output ceiling; default is claude_handler.MAX_TOKENS
+    request_options: dict     # extra kwargs for messages.create/stream (e.g. output_config)
+    history_messages: int     # server keeps only the last N client-supplied history items
+    max_message_chars: int    # a longer user message is a 400 before any API call
+    token_budget: int         # per-skin Group budget; 0 < n < 2**31 - 1 (int4 column)
+    api_key_env: str          # env var naming this skin's own Anthropic key
 
 
 SKINS: dict[str, Skin] = {
@@ -75,7 +94,55 @@ SKINS: dict[str, Skin] = {
         # Codespace" — see the ADR-0002 amendment.
         'module_paths': ['modules/{module}', 'assignments/{module}'],
     },
+    'cts285': {
+        # CTS 285 (Systems Analysis & Design) tutor. Unlike the two skins
+        # above it is out-of-character: no AlgoCratic framing (chrome is
+        # neutral) and no clearance band. Username AND password, both
+        # env-overridable for the same reason as CSC134_PASSCODE: this repo
+        # is public, so rotating a credential is a dashboard edit.
+        # `or`, not a getenv default: a blank dashboard field sets the variable
+        # to '', and '' would then be the credential.
+        'username': (os.getenv('CTS285_USERNAME') or '').strip() or 'CTS285',
+        'password': os.getenv('CTS285_PASSWORD') or 'algorithm',
+        'model': 'claude-haiku-5-5',
+        # Stored in Group.clearance_level, which is NOT NULL. Not an
+        # AlgoCratic band, and neutral chrome never renders it.
+        'clearance': 'STANDARD',
+        'display': 'CTS 285 — Systems Analysis & Design',
+        'tagline': 'DataMan project tutor.',
+        'persona_file': 'cts285_persona.md',
+        'notes_file': 'cts285_teaching_notes.md',
+        'header_file': 'cts285_context.md',
+        'corpus_dir': 'cts285',
+        # Always on: the DataMan manual (Canvas page M1 #18).
+        'corpus_index': ['reference'],
+        'active_module': 'm4',
+        'module_paths': ['modules/{module}'],
+        'chrome': 'neutral',
+        # Haiku 5.5 thinks by default and thinking counts against max_tokens,
+        # so a skin on it needs room for thinking plus the answer.
+        'max_tokens': 4096,
+        # effort is the documented lever for chat on Haiku 5.5. It must not
+        # be sent to Haiku 4.5 (csc134), which rejects it — hence per skin.
+        'request_options': {'output_config': {'effort': 'low'}},
+        # Cost controls. Uncached input is the only part that grows per
+        # message. The history cap implements the cost half of ADR-0004 s5
+        # for this skin; it does not fix forgery, since the client still
+        # supplies the history.
+        'history_messages': 10,
+        'max_message_chars': 6000,
+        # About 44k counted tokens per message (cache reads count in full,
+        # K10), so the 25M global default would be ~570 messages for the
+        # whole cohort. Must stay under the int4 column limit; no migration.
+        'token_budget': skin_budget_from_env('CTS285_TOKEN_BUDGET', 2_000_000_000),
+        'api_key_env': 'CTS285_ANTHROPIC_API_KEY',
+    },
 }
+
+# Catch a bad per-skin budget at import, not at the first INSERT in production.
+for _slug, _skin in SKINS.items():
+    if 'token_budget' in _skin:
+        validate_skin_budget(f'SKINS[{_slug!r}][token_budget]', _skin['token_budget'])
 
 
 def module_window(slug: str) -> list[str]:
@@ -136,12 +203,32 @@ def active_module(slug: str) -> str | None:
     return skin['active_module']
 
 
-def authenticate_skin(slug: str, password: str) -> Skin | None:
-    """Return the skin entry if credentials valid, else None."""
+def _same(a: str, b: str) -> bool:
+    """Constant-time string equality. Bytes, because compare_digest raises
+    TypeError on a non-ASCII str and a student can type anything."""
+    return hmac.compare_digest(a.encode('utf-8'), b.encode('utf-8'))
+
+
+def authenticate_skin(slug: str, password: str,
+                      username: str | None = None) -> Skin | None:
+    """Return the skin entry if credentials valid, else None.
+
+    A skin that declares a ``username`` also requires it; a skin that does
+    not ignores any username supplied, so the passcode-only skins behave as
+    before. The username ignores case and surrounding whitespace (a student
+    typing ``cts285 `` should not be locked out); the password is exact.
+    Both comparisons always run, so a wrong username does not return faster
+    than a wrong password.
+    """
     skin = SKINS.get(slug)
-    if skin and skin['password'] == password:
-        return skin
-    return None
+    if not skin:
+        return None
+    password_ok = _same(password or '', skin['password'])
+    expected_user = skin.get('username')
+    if expected_user is None:
+        return skin if password_ok else None
+    user_ok = _same((username or '').strip().casefold(), expected_user.strip().casefold())
+    return skin if (user_ok and password_ok) else None
 
 
 def _resolve_within(root: Path, rel: str) -> Path | None:

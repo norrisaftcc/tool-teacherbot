@@ -89,6 +89,71 @@ def skin_login_required(slug: str):
     return decorator
 
 
+NEUTRAL_API_ERROR = 'The tutor is unavailable right now. Try again later, or ask your instructor.'
+
+
+def _clamp_history(history, limit: int) -> list[dict]:
+    """The last ``limit`` well-formed history items.
+
+    The client supplies history, so every item is untrusted: only dicts with
+    a user/assistant role and string content survive. A leading assistant
+    turn is dropped after the cut, because slicing an arbitrary window can
+    start on one and a conversation should open on the student.
+
+    This bounds cost, not forgery — a client can still claim the assistant
+    said anything inside the window (ADR-0004 context).
+    """
+    if not isinstance(history, list):
+        return []
+    clean = [
+        {'role': item['role'], 'content': item['content']}
+        for item in history
+        if isinstance(item, dict)
+        and item.get('role') in ('user', 'assistant')
+        and isinstance(item.get('content'), str)
+    ]
+    clean = clean[-limit:] if limit > 0 else []
+    while clean and clean[0]['role'] != 'user':
+        clean.pop(0)
+    return clean
+
+
+def _read_chat_request(skin: dict):
+    """Parse and bound a chat POST.
+
+    Returns ``(user_message, history, error_response)``; exactly one of the
+    tail pair is None. Skins that declare no caps get today's behaviour:
+    history passes through untouched.
+    """
+    data = request.get_json(silent=True) or {}
+    raw = data.get('message')
+    user_message = raw.strip() if isinstance(raw, str) else ''
+    history = data.get('history') or []
+
+    if not user_message:
+        return None, None, (jsonify({'error': 'Empty message'}), 400)
+
+    max_chars = skin.get('max_message_chars')
+    if max_chars and len(user_message) > max_chars:
+        return None, None, (jsonify({
+            'error': f'Message too long. Keep it under {max_chars:,} characters.',
+        }), 400)
+
+    limit = skin.get('history_messages')
+    if limit is not None:
+        history = _clamp_history(history, limit)
+    return user_message, history, None
+
+
+def _api_options(skin: dict) -> dict:
+    """Per-skin kwargs for claude_handler. Empty for a skin that sets none."""
+    return {
+        'max_tokens': skin.get('max_tokens'),
+        'request_options': skin.get('request_options'),
+        'api_key_env': skin.get('api_key_env'),
+    }
+
+
 def skin_blueprint(slug: str) -> Blueprint:
     """Build a Blueprint that serves the /{slug}/… surface for one skin."""
     from auth import SKINS
@@ -122,9 +187,11 @@ def skin_blueprint(slug: str) -> Blueprint:
         from models import db, Group
 
         password = (request.form.get('password') or '').strip()
-        skin_entry = authenticate_skin(slug, password)
+        username = request.form.get('username') or ''
+        skin_entry = authenticate_skin(slug, password, username)
         if not skin_entry:
-            flash('Invalid passcode for this cohort.')
+            flash('Invalid username or password.' if SKINS[slug].get('username')
+                  else 'Invalid passcode for this cohort.')
             return render_template(
                 'login.html',
                 slug=slug,
@@ -158,9 +225,12 @@ def skin_blueprint(slug: str) -> Blueprint:
         group = Group.query.filter_by(name=slug).first()
         if not group:
             group = Group(name=slug, clearance_level=skin_entry['clearance'])
+            if skin_entry.get('token_budget'):
+                # A skin's own budget; the column default is the global one.
+                group.token_budget = skin_entry['token_budget']
             db.session.add(group)
             db.session.commit()
-        elif group.raise_budget_floor():
+        elif group.raise_budget_floor(skin_entry.get('token_budget')):
             # Existing rows predate the budget resize and cannot be fixed by
             # the column default — see Group.raise_budget_floor.
             db.session.commit()
@@ -184,14 +254,11 @@ def skin_blueprint(slug: str) -> Blueprint:
         from auth import load_skin_context, load_skin_notes, load_skin_persona
         from models import db, Group, Conversation, Message
 
-        data = request.get_json(silent=True) or {}
-        user_message = (data.get('message') or '').strip()
-        history = data.get('history') or []
-
-        if not user_message:
-            return jsonify({'error': 'Empty message'}), 400
-
         skin = _skin()
+        user_message, history, error = _read_chat_request(skin)
+        if error:
+            return error
+
         group = Group.query.filter_by(name=slug).first()
         if group and group.tokens_remaining <= 0:
             return jsonify({'error': 'Token budget exhausted. Contact your instructor.'}), 403
@@ -200,9 +267,15 @@ def skin_blueprint(slug: str) -> Blueprint:
             response_text, tokens_used = get_claude_response(
                 load_skin_context(slug), history, user_message,
                 model=skin['model'], persona=load_skin_persona(slug),
-                notes=load_skin_notes(slug),
+                notes=load_skin_notes(slug), **_api_options(skin),
             )
         except RuntimeError as e:
+            if skin.get('chrome') == 'neutral':
+                # The SDK message can carry request detail; a student does not
+                # need it and the log only needs the type.
+                current_app.logger.error(
+                    'Claude API error for %s (%s)', slug, type((e.__cause__ or e)).__name__)
+                return jsonify({'error': NEUTRAL_API_ERROR}), 502
             return jsonify({'error': str(e)}), 502
 
         try:
@@ -236,14 +309,11 @@ def skin_blueprint(slug: str) -> Blueprint:
         from auth import load_skin_context, load_skin_notes, load_skin_persona
         from models import db, Group, Conversation, Message
 
-        data = request.get_json(silent=True) or {}
-        user_message = (data.get('message') or '').strip()
-        history = data.get('history') or []
-
-        if not user_message:
-            return jsonify({'error': 'Empty message'}), 400
-
         skin = _skin()
+        user_message, history, error = _read_chat_request(skin)
+        if error:
+            return error
+
         group = Group.query.filter_by(name=slug).first()
         if group and group.tokens_remaining <= 0:
             return jsonify({'error': 'Token budget exhausted. Contact your instructor.'}), 403
@@ -265,6 +335,8 @@ def skin_blueprint(slug: str) -> Blueprint:
         skin_persona = load_skin_persona(slug)
         skin_notes = load_skin_notes(slug)
         model = skin['model']
+        api_options = _api_options(skin)
+        neutral = skin.get('chrome') == 'neutral'
 
         def generate():
             full_text = ''
@@ -273,6 +345,7 @@ def skin_blueprint(slug: str) -> Blueprint:
                 for chunk, tokens in stream_claude_response(
                     skin_context, history, user_message,
                     model=model, persona=skin_persona, notes=skin_notes,
+                    **api_options,
                 ):
                     if chunk:
                         full_text += chunk
@@ -280,7 +353,13 @@ def skin_blueprint(slug: str) -> Blueprint:
                     elif tokens:
                         total_tokens = tokens
             except RuntimeError as e:
-                yield f'data: {json.dumps({"error": str(e)})}\n\n'
+                if neutral:
+                    current_app.logger.error(
+                        'Claude API error for %s (%s)', slug, type((e.__cause__ or e)).__name__)
+                    message = NEUTRAL_API_ERROR
+                else:
+                    message = str(e)
+                yield f'data: {json.dumps({"error": message})}\n\n'
                 return
 
             try:

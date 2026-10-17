@@ -1,34 +1,44 @@
 {% extends "base.html" %}
-{% block title %}{{ slug | upper }} — Teacherbot{% endblock %}
+{% set neutral = skin.chrome == 'neutral' %}
+{% block title %}{% if neutral %}{{ skin.display.split(' — ')[0] }} Tutor{% else %}{{ slug | upper }} — Teacherbot{% endif %}{% endblock %}
 
 {% block breadcrumb %}
+{% if neutral %}
+<span>{{ skin.display.split(' — ')[0] }}</span><span class="sep">/</span>
+<span class="now">TUTOR</span>
+{% else %}
 <span>PORTAL</span><span class="sep">/</span>
 <span>TA SYSTEMS</span><span class="sep">/</span>
 <span>{{ slug | upper }}</span><span class="sep">/</span>
 <span class="now">CHAT</span>
+{% endif %}
 {% endblock %}
 
 {% block masthead_right %}
+{% if not neutral %}
 <span class="pill pill--online">
   <span class="pill__dot"></span>OPERATIVE
 </span>
-<a href="{{ url_for('main.logout') }}" class="lnk-btn">LOGOUT</a>
+{% endif %}
+<a href="{{ url_for('main.logout') }}" class="lnk-btn">{% if neutral %}SIGN OUT{% else %}LOGOUT{% endif %}</a>
 {% endblock %}
 
 {% block content %}
+{% if not neutral %}
 <!-- Hidden SVG template for bot avatar (used by chat.js) -->
 <svg id="bot-avatar-svg" style="display:none;" viewBox="0 0 246.51 166.47" aria-hidden="true">
   <path d="M84.71,144.13l-16.2,22.35h178.01L141.43,10.07c-3.69-5.65-9.58-10.07-17.43-10.07s-14,4.91-17.44,10.07L0,166.47h31.43l42.39-62.74c4.53,4.54,15.78,13.44,17.94,14.87,7.54,4.99,18.08,10.11,27.18,10.9,20.44,1.79,39.42-11.92,53.28-25.91l26.91,40.54h-114.42ZM97,112.99l-15.07-11.86,15.07-11.86c-2.96,7.87-2.97,15.82,0,23.71ZM123.14,122.44c-11.72,0-21.22-9.5-21.22-21.22s9.5-21.22,21.22-21.22,21.22,9.5,21.22,21.22-9.5,21.22-21.22,21.22ZM149.47,112.99c.31-3.08,1.77-5.97,2.06-9.07.48-5.2-.66-9.85-2.42-14.65l15.43,11.86-15.07,11.86ZM119.14,72.96c-13.33,1.31-26.22,9.07-36.83,18.21l41.19-60.97,40.46,60.94c-12.74-10.79-28.42-19.8-44.82-18.19Z" fill="currentColor"/>
   <path d="M126.6,98.01l3.65-7.39c-3.75-2.49-8.55-2.8-12.58-.81-6.21,3.07-8.8,10.7-5.73,16.91,3.07,6.21,10.7,8.8,16.91,5.73,6.21-3.07,8.8-10.7,5.73-16.91l-7.98,2.47Z" fill="currentColor"/>
 </svg>
+{% endif %}
 
 <aside class="sidebar">
   <div class="sidebar__section">
-    <div class="sidebar__heading"><span>YOUR GROUP</span></div>
+    <div class="sidebar__heading"><span>{% if neutral %}YOUR COURSE{% else %}YOUR GROUP{% endif %}</span></div>
     <button class="group-row group-row--active" style="cursor:default;">
       <div class="group-row__head">
         <span class="group-row__name">{{ slug | upper }}</span>
-        <span class="group-row__clearance clearance--{{ clearance | lower }}">&#9679; {{ clearance | upper }}</span>
+        {% if not neutral %}<span class="group-row__clearance clearance--{{ clearance | lower }}">&#9679; {{ clearance | upper }}</span>{% endif %}
       </div>
       <div class="group-row__alias">{{ skin.display }}</div>
       <div class="group-row__project">{{ skin.tagline }} &middot; model: <code>{{ skin.model }}</code></div>
@@ -41,12 +51,12 @@
       </div>
     </button>
     <div style="margin-top:10px;font-family:var(--font-mono);font-size:10px;color:var(--cream-muted);letter-spacing:0.06em;line-height:1.5;">
-      You see your group only. Conversations logged for instructor review.
+      {% if neutral %}Conversations are logged for instructor review.{% else %}You see your group only. Conversations logged for instructor review.{% endif %}
     </div>
   </div>
 
   <div class="sidebar__section sidebar__section--scroll">
-    <div class="sidebar__heading"><span>YOUR TOKENS · CYCLE 03</span></div>
+    <div class="sidebar__heading"><span>{% if neutral %}TOKENS LEFT FOR THE CLASS{% else %}YOUR TOKENS · CYCLE 03{% endif %}</span></div>
     <div style="font-family:var(--font-mono);font-size:11px;color:var(--cream);display:flex;justify-content:space-between;margin-bottom:6px;">
       <span style="color:var(--cream-muted);letter-spacing:0.06em;text-transform:uppercase;">remaining</span>
       <span style="color:var(--mustard);font-weight:700;" id="tokens-remaining">—</span>
@@ -54,18 +64,22 @@
     <div style="height:6px;background:var(--ink);border:1px solid var(--ink-muted);position:relative;overflow:hidden;">
       <div id="token-bar" style="position:absolute;inset:0;right:auto;width:0%;background:var(--mustard);transition:width 0.4s;"></div>
     </div>
+    {% if not neutral %}
     <div style="font-family:var(--font-mono);font-size:9px;color:var(--cream-muted);letter-spacing:0.08em;text-transform:uppercase;margin-top:6px;display:flex;justify-content:space-between;">
       <span>resets monday</span>
       <span>budget by directive AF-TOK-2026</span>
     </div>
+    {% endif %}
   </div>
 
+  {% if not neutral %}
   <div class="sidebar__section">
     <div style="padding:10px;border:1px dashed var(--ink-muted);font-family:var(--font-mono);font-size:10px;color:var(--cream-muted);line-height:1.6;letter-spacing:0.04em;">
       <strong style="color:var(--mustard);display:block;margin-bottom:4px;letter-spacing:0.1em;">&#9650; ISOLATION NOTICE</strong>
       Other groups exist but their conversations are not visible to OPERATIVE clearance.
     </div>
   </div>
+  {% endif %}
 </aside>
 
 <div class="workspace">
@@ -75,7 +89,7 @@
         <span class="chat__title-mark">{{ slug | upper }}</span>
         <div class="chat__title-text">
           <span>{{ skin.display }} <span style="color:var(--cream-muted);font-weight:400;font-size:12px;">· {{ skin.tagline }}</span></span>
-          <small>CONTEXT INJECTED · {{ clearance | upper }} CLEARANCE · MODEL {{ skin.model }}</small>
+          <small>{% if neutral %}MODEL {{ skin.model }}{% else %}CONTEXT INJECTED · {{ clearance | upper }} CLEARANCE · MODEL {{ skin.model }}{% endif %}</small>
         </div>
       </div>
       <span class="pill pill--online" id="status-pill">
@@ -85,6 +99,34 @@
 
     <div class="chat__thread" id="chat-log">
       <!-- Empty state shown when no messages -->
+      {% if neutral %}
+      <div class="empty" id="empty-state">
+        <div class="empty__title">{{ skin.display.split(' — ')[0] }} Tutor</div>
+        <div class="empty__sub">ask about the course</div>
+        <div class="empty__hint">
+          Ask what a page means, check your reasoning, or find the next step.
+          The tutor asks questions back. It does not write your work.
+        </div>
+        <div class="empty__suggestions">
+          <button class="suggestion" onclick="setInput('What is the difference between evidence and a requirement?')">
+            <strong>Concept</strong>
+            What is the difference between evidence and a requirement?
+          </button>
+          <button class="suggestion" onclick="setInput('Here is my draft. What is its weakest part, and what question would fix it?')">
+            <strong>Check</strong>
+            Here is my draft. What is its weakest part?
+          </button>
+          <button class="suggestion" onclick="setInput('Which page should I read first for this module?')">
+            <strong>Find</strong>
+            Which page should I read first for this module?
+          </button>
+          <button class="suggestion" onclick="setInput('I am stuck. Ask me what I have so far.')">
+            <strong>Stuck</strong>
+            I am stuck. Ask me what I have so far.
+          </button>
+        </div>
+      </div>
+      {% else %}
       <div class="empty" id="empty-state">
         <div class="empty__mark">
           <svg viewBox="0 0 246.51 166.47" style="width:100%;height:100%;fill:var(--amber);opacity:0.4;" aria-hidden="true">
@@ -117,17 +159,20 @@
           </button>
         </div>
       </div>
+      {% endif %}
     </div>
 
     <!-- Typing indicator -->
     <div class="typing" id="typing-indicator" style="display:none;padding:8px 24px;">
+      {% if not neutral %}
       <div class="msg__avatar" style="width:32px;height:32px;">
         <svg viewBox="0 0 246.51 166.47" style="width:20px;height:13px;fill:var(--amber);" aria-hidden="true">
           <path d="M84.71,144.13l-16.2,22.35h178.01L141.43,10.07c-3.69-5.65-9.58-10.07-17.43-10.07s-14,4.91-17.44,10.07L0,166.47h31.43l42.39-62.74c4.53,4.54,15.78,13.44,17.94,14.87,7.54,4.99,18.08,10.11,27.18,10.9,20.44,1.79,39.42-11.92,53.28-25.91l26.91,40.54h-114.42ZM97,112.99l-15.07-11.86,15.07-11.86c-2.96,7.87-2.97,15.82,0,23.71ZM123.14,122.44c-11.72,0-21.22-9.5-21.22-21.22s9.5-21.22,21.22-21.22,21.22,9.5,21.22,21.22-9.5,21.22-21.22,21.22ZM149.47,112.99c.31-3.08,1.77-5.97,2.06-9.07.48-5.2-.66-9.85-2.42-14.65l15.43,11.86-15.07,11.86ZM119.14,72.96c-13.33,1.31-26.22,9.07-36.83,18.21l41.19-60.97,40.46,60.94c-12.74-10.79-28.42-19.8-44.82-18.19Z"/>
           <path d="M126.6,98.01l3.65-7.39c-3.75-2.49-8.55-2.8-12.58-.81-6.21,3.07-8.8,10.7-5.73,16.91,3.07,6.21,10.7,8.8,16.91,5.73,6.21-3.07,8.8-10.7,5.73-16.91l-7.98,2.47Z"/>
         </svg>
       </div>
-      <span style="margin-left:8px;font-family:var(--font-mono);font-size:11px;color:var(--cream-muted);letter-spacing:0.08em;">TEACHERBOT IS THINKING</span>
+      {% endif %}
+      <span style="margin-left:8px;font-family:var(--font-mono);font-size:11px;color:var(--cream-muted);letter-spacing:0.08em;">{% if neutral %}THINKING{% else %}TEACHERBOT IS THINKING{% endif %}</span>
       <div class="typing__dots">
         <span></span><span></span><span></span>
       </div>
@@ -141,7 +186,7 @@
             id="message-input"
             class="composer__input"
             rows="1"
-            placeholder="Ask Teacherbot. Paste a stack trace. Describe what's broken."
+            placeholder="{% if neutral %}Ask a question about the course.{% else %}Ask Teacherbot. Paste a stack trace. Describe what's broken.{% endif %}"
             onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();document.getElementById('chat-form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));}"
             oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,140)+'px';"
           ></textarea>
