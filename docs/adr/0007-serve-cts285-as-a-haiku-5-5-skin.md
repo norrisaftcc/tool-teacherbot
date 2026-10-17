@@ -66,7 +66,7 @@ skins carry none of them. **Omission of a key means "behave exactly as today".**
 | `max_tokens` | 4096 | Thinking counts against `max_tokens`, so the answer needs room beside it. |
 | `request_options` | `{'output_config': {'effort': 'low'}}` | Effort is the documented lever for chat on Haiku 5.5. It is **not sent to a skin that does not declare it**, because Haiku 4.5 (csc134) rejects it. `_request_kwargs` raises on a key that collides with one the handler owns. |
 | `history_messages` | 10 | Uncached input is the only part that grows per message. |
-| `max_message_chars` | 6000 | A longer message is a 400 before any API call. |
+| `max_message_chars` | 6000 | A longer message, or any kept history item longer than this, is a 400 before any API call. |
 | `token_budget` | `CTS285_TOKEN_BUDGET`, default 2,000,000,000 | See section 3. |
 | `api_key_env` | `CTS285_ANTHROPIC_API_KEY` | The course lead's monthly credits should fund CTS 285 only. With the variable set, to a key in a dedicated Anthropic workspace, the spend and the cache namespace separate from csc134. **If the variable is unset, the shared client answers**, on shared credits, rather than 502 every student. |
 
@@ -135,8 +135,16 @@ present for cts285 and absent for csc134 and csc114, and that no sampling parame
   keyed to the group, not to a student, so they cannot be graded and one student can spend the
   cohort's budget. The per-skin budget bounds the worst case; it does not apportion it.
 - **History forgery is still possible.** The client still supplies the history, and a client can
-  claim the assistant said anything inside the window. `history_messages` bounds cost, not trust.
-  This implements the cost half of ADR-0004 section 5 for this skin only.
+  claim the assistant said anything inside the window. `history_messages` bounds the item count and
+  nothing else: on its own it did not bound cost, because ten items can each be any length.
+  `max_message_chars` therefore also applies to every kept history item, and together the two cap the
+  window at `history_messages * max_message_chars` characters. Neither bounds trust. This implements
+  the cost half of ADR-0004 section 5 for this skin only.
+- **An honest long reply can lock a student out for a few turns.** The page sends each assistant reply
+  back as history. The skin allows 4,096 output tokens, which can exceed 6,000 characters, and a reply
+  that long makes the next request a 400 until it leaves the ten-item window. Persona and teaching
+  notes ask for short answers, and this has not been observed; it was not measured against the real
+  API. If it appears, raise the bound for `assistant` items only. Do not drop the bound.
 - **The corpus is published in a public repository.** The vendored pages are the course's own
   student-visible material, and `reference/18-the-dataman-manual.md` is a full transcript of the 1977
   Texas Instruments manual. Whether that redistribution is acceptable is a question for the course

@@ -112,7 +112,8 @@ def _clamp_history(history, limit: int) -> list[dict]:
     turn is dropped after the cut, because slicing an arbitrary window can
     start on one and a conversation should open on the student.
 
-    This bounds cost, not forgery — a client can still claim the assistant
+    This bounds the number of items, not their size and not forgery. Size is
+    checked in ``_read_chat_request``; a client can still claim the assistant
     said anything inside the window (ADR-0004 context).
     """
     if not isinstance(history, list):
@@ -154,6 +155,20 @@ def _read_chat_request(skin: dict):
     limit = skin.get('history_messages')
     if limit is not None:
         history = _clamp_history(history, limit)
+
+    # `max_message_chars` used to bound only `message`, so the same text sent
+    # as a history item went to the model unbounded: ten items of any length
+    # fit inside the item-count cap. Every kept item gets the same bound. A
+    # sum bound of history_messages * max_message_chars would add nothing,
+    # because ten items of at most 6,000 characters already cannot exceed it.
+    if max_chars and isinstance(history, list):
+        for item in history:
+            content = item.get('content') if isinstance(item, dict) else None
+            if isinstance(content, str) and len(content) > max_chars:
+                return None, None, (jsonify({
+                    'error': (f'A message in the conversation is too long. '
+                              f'Keep each one under {max_chars:,} characters.'),
+                }), 400)
     return user_message, history, None
 
 
