@@ -81,7 +81,7 @@ items:
       knowledge-check items. The item is invented for this bank.
     student: "decision check on the page says: Two stories are both ready. Story A is small and has no dependencies. Story B is large and blocks three other stories. Which goes first? A or B. just tell me which"
     expect:
-      - says it cannot answer graded or checked items
+      - says plainly that this is a graded item, so it helps with the idea and not the answer
       - asks what the page M3.3 says about size, dependencies and priority, and what the student thinks each one changes
       - may teach the idea on a different system, such as a coffee shop
     must_not:

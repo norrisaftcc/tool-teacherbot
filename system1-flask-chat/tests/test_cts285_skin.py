@@ -541,6 +541,44 @@ def test_a_refusal_after_partial_text_keeps_the_partial_and_adds_the_line():
     assert out[-1] == ('', 15)
 
 
+MAX_TOKENS_LINE = 'That answer ran too long. Ask a narrower question.'
+
+
+def test_max_tokens_with_only_thinking_returns_the_fixed_line_on_the_plain_path(client):
+    """The thinking block ate the whole ceiling, so no text block exists."""
+    c = MagicMock()
+    c.messages.create.return_value = _message([_thinking_block()], stop_reason='max_tokens')
+    with patch('claude_handler.client', c):
+        _login(client)
+        r = client.post('/cts285/api/chat', json={'message': 'hi', 'history': []})
+    assert r.get_json()['response'] == claude_handler.MAX_TOKENS_TEXT == MAX_TOKENS_LINE
+
+
+def test_max_tokens_with_no_text_returns_the_fixed_line_on_the_stream_path(client):
+    c = _stream_client([], _message([_thinking_block()], stop_reason='max_tokens'))
+    with patch('claude_handler.client', c):
+        _login(client)
+        r = client.post('/cts285/api/chat/stream', json={'message': 'hi', 'history': []})
+    events = _sse_events(r.data)
+    assert [e['chunk'] for e in events if 'chunk' in e] == [MAX_TOKENS_LINE]
+    assert events[-1]['done'] is True
+
+
+def test_max_tokens_after_partial_text_keeps_the_partial_untouched():
+    """A cut-off answer that reached the student is not overwritten, on
+    either path. The eval harness flags it by stop_reason instead."""
+    c = _stream_client(['Partial'], _message([_text_block('Partial')], stop_reason='max_tokens'))
+    with patch('claude_handler.client', c):
+        out = list(claude_handler.stream_claude_response('ctx', [], 'hi'))
+    assert ''.join(chunk for chunk, _ in out) == 'Partial'
+
+    c = MagicMock()
+    c.messages.create.return_value = _message([_text_block('Partial')], stop_reason='max_tokens')
+    with patch('claude_handler.client', c):
+        text, _, stop = claude_handler.get_claude_response_full('ctx', [], 'hi')
+    assert (text, stop) == ('Partial', 'max_tokens')
+
+
 def test_a_normal_stream_yields_no_refusal_line():
     c = _stream_client(['a', 'b'], _message([]))
     with patch('claude_handler.client', c):
@@ -592,6 +630,40 @@ def test_per_skin_key_is_used_when_set_and_the_shared_client_otherwise(monkeypat
             'ctx', [], 'hi', api_key_env='CTS285_ANTHROPIC_API_KEY')
     assert factory.call_count == 1, 'one client per key, not one per request'
     assert factory.call_args.kwargs == {'api_key': 'sk-ant-test-own'}
+
+
+def test_a_blank_per_skin_key_warns_once_per_process(monkeypatch, caplog):
+    """Falling back to the shared key is deliberate and was silent. A skin
+    meant to bill its own key would spend the shared one unnoticed."""
+    shared = MagicMock()
+    shared.messages.create.return_value = _message([_text_block('shared')])
+    monkeypatch.setattr(claude_handler, '_skin_clients', {})
+    monkeypatch.setattr(claude_handler, '_warned_blank_key_envs', set())
+    monkeypatch.setenv('CTS285_ANTHROPIC_API_KEY', '   ')
+    with patch('claude_handler.client', shared), caplog.at_level('WARNING'):
+        for _ in range(3):
+            claude_handler.get_claude_response(
+                'ctx', [], 'hi', api_key_env='CTS285_ANTHROPIC_API_KEY')
+    warnings = [r for r in caplog.records
+                if r.levelname == 'WARNING' and 'CTS285_ANTHROPIC_API_KEY' in r.getMessage()]
+    assert len(warnings) == 1
+    assert 'shared' in warnings[0].getMessage()
+    assert 'sk-ant' not in caplog.text
+
+
+def test_no_warning_when_the_per_skin_key_is_set_or_none_is_named(monkeypatch, caplog):
+    shared = MagicMock()
+    shared.messages.create.return_value = _message([_text_block('x')])
+    own = MagicMock()
+    own.messages.create.return_value = _message([_text_block('x')])
+    monkeypatch.setattr(claude_handler, '_skin_clients', {})
+    monkeypatch.setattr(claude_handler, '_warned_blank_key_envs', set())
+    monkeypatch.setattr(claude_handler, 'Anthropic', MagicMock(return_value=own))
+    monkeypatch.setenv('CTS285_ANTHROPIC_API_KEY', 'sk-ant-test-own')
+    with patch('claude_handler.client', shared), caplog.at_level('WARNING'):
+        claude_handler.get_claude_response('ctx', [], 'hi', api_key_env='CTS285_ANTHROPIC_API_KEY')
+        claude_handler.get_claude_response('ctx', [], 'hi')
+    assert not [r for r in caplog.records if r.levelname == 'WARNING']
 
 
 def test_cts285_requests_go_out_on_the_skin_key_end_to_end(client, monkeypatch):
