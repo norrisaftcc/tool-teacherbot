@@ -65,6 +65,55 @@ def _budget_from_env(raw: str | None) -> int:
 
 DEFAULT_TOKEN_BUDGET = _budget_from_env(os.getenv('GROUP_TOKEN_BUDGET'))
 
+# Group.token_budget is db.Integer, which is int4 on Postgres. A larger value
+# is accepted by SQLite (the test database) and rejected by Postgres at the
+# first INSERT, so a bad per-skin budget would pass every test and then 500
+# the first login in production. Refusing at import is the better failure.
+MAX_TOKEN_BUDGET = 2**31 - 1
+
+
+def validate_skin_budget(name: str, value) -> int:
+    """Check a per-skin token budget, or fail naming ``name``.
+
+    ``name`` is the env var (or skin key) an operator would edit. The range
+    is 0 < value < 2**31 - 1: positive for the reason ``_budget_from_env``
+    gives, and strictly below the int4 maximum so ``tokens_used + count``
+    arithmetic done in SQL-adjacent code never reaches the column limit.
+    """
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise RuntimeError(f'{name} must be an integer number of tokens, got {value!r}.')
+    if value <= 0:
+        raise RuntimeError(
+            f'{name} must be positive, got {value}. A budget of zero or less '
+            f'locks out every student in the skin on their first message.'
+        )
+    if value >= MAX_TOKEN_BUDGET:
+        raise RuntimeError(
+            f'{name} must be below {MAX_TOKEN_BUDGET:,} (the largest value '
+            f'the integer budget column holds on Postgres), got {value:,}.'
+        )
+    return value
+
+
+def skin_budget_from_env(name: str, default: int) -> int:
+    """Read a per-skin budget from the environment, validated.
+
+    Unset or blank means ``default``. A non-integer value raises with the
+    variable name, because ``int()`` alone fails from the middle of the
+    auth import with a bare ValueError that names nothing.
+    """
+    raw = os.getenv(name)
+    if raw is None or raw.strip() == '':
+        return validate_skin_budget(name, default)
+    try:
+        value = int(raw)
+    except ValueError:
+        raise RuntimeError(
+            f'{name} must be an integer number of tokens, got {raw!r}. '
+            f'Unset it to use the default ({default:,}).'
+        ) from None
+    return validate_skin_budget(name, value)
+
 
 class Group(db.Model):
     __tablename__ = 'groups'
@@ -86,8 +135,8 @@ class Group(db.Model):
     def increment_tokens(self, count):
         self.tokens_used = min(self.tokens_used + count, self.token_budget)
 
-    def raise_budget_floor(self) -> bool:
-        """Lift a stale budget up to the current default. Returns True if changed.
+    def raise_budget_floor(self, floor: int | None = None) -> bool:
+        """Lift a stale budget up to ``floor``. Returns True if changed.
 
         A column default only applies on INSERT, so the Group rows already in
         production keep the 100_000 that was written when they were created.
@@ -99,6 +148,11 @@ class Group(db.Model):
         method stays because it is already written and already tested, not
         because the alternative is unavailable.
 
+        ``floor`` defaults to the global ``DEFAULT_TOKEN_BUDGET``. A skin that
+        declares its own ``token_budget`` passes it here: the global default
+        is the wrong floor for that skin, because a skin budget below it would
+        be silently raised back to 25M on every login, defeating the cap.
+
         Raise-only, never lower: this must not quietly undo a deliberate cap.
         Nothing can have set one yet — there is no UI or route to edit a
         budget — but that will not stay true.
@@ -106,8 +160,10 @@ class Group(db.Model):
         Remove this when the budget moves to a per-seat unit (ADR-0004);
         it exists only to carry existing rows across that gap.
         """
-        if self.token_budget < DEFAULT_TOKEN_BUDGET:
-            self.token_budget = DEFAULT_TOKEN_BUDGET
+        if floor is None:
+            floor = DEFAULT_TOKEN_BUDGET
+        if self.token_budget < floor:
+            self.token_budget = floor
             return True
         return False
 

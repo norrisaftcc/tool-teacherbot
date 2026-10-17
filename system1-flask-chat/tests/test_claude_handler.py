@@ -47,7 +47,7 @@ def test_default_persona_keeps_guardrails_without_cohort_flavour():
 def test_get_claude_response_returns_text_and_tokens():
     mock_client = MagicMock()
     mock_message = MagicMock()
-    mock_message.content = [MagicMock(text='Test response')]
+    mock_message.content = [MagicMock(type='text', text='Test response')]
     mock_message.usage.input_tokens = 100
     mock_message.usage.output_tokens = 50
     mock_client.messages.create.return_value = mock_message
@@ -61,7 +61,7 @@ def test_get_claude_response_returns_text_and_tokens():
 def test_get_claude_response_includes_history():
     mock_client = MagicMock()
     mock_message = MagicMock()
-    mock_message.content = [MagicMock(text='Reply')]
+    mock_message.content = [MagicMock(type='text', text='Reply')]
     mock_message.usage.input_tokens = 10
     mock_message.usage.output_tokens = 5
     mock_client.messages.create.return_value = mock_message
@@ -83,7 +83,7 @@ def test_get_claude_response_includes_history():
 def test_get_claude_response_empty_history():
     mock_client = MagicMock()
     mock_message = MagicMock()
-    mock_message.content = [MagicMock(text='First response')]
+    mock_message.content = [MagicMock(type='text', text='First response')]
     mock_message.usage.input_tokens = 20
     mock_message.usage.output_tokens = 10
     mock_client.messages.create.return_value = mock_message
@@ -99,7 +99,7 @@ def test_get_claude_response_empty_history():
 
 def _mock_message(text='ok', in_tokens=1, out_tokens=1):
     m = MagicMock()
-    m.content = [MagicMock(text=text)]
+    m.content = [MagicMock(type='text', text=text)]
     m.usage.input_tokens = in_tokens
     m.usage.output_tokens = out_tokens
     return m
