@@ -268,6 +268,31 @@ def test_voice_files_carry_no_forbidden_string(name):
         f'{name} uses "clearance" outside the sentence that says the tutor has none')
 
 
+@pytest.mark.parametrize('name', _VOICE_FILES)
+def test_voice_files_do_not_name_the_graded_m1_subject(name):
+    """Number Guesser is the subject of the graded M1 case file. The persona
+    once listed it as an example system to teach with, which put the graded
+    subject in the tutor's mouth. The module page names it, as it must; the
+    voice files do not."""
+    text = (CONTEXT / name).read_text(encoding='utf-8')
+    assert not re.search(r'number\s+guesser', text, re.I), name
+
+
+def test_persona_lists_the_m1_case_file_as_the_students_work():
+    text = (CONTEXT / 'cts285_persona.md').read_text(encoding='utf-8')
+    assert re.search(r"Module 1 analyst's case file", text)
+
+
+def test_persona_does_not_contradict_itself_about_opening_with_a_refusal():
+    """One line said to tell a student who pastes a graded item that you
+    cannot answer it, and another said never to open by saying you cannot."""
+    text = ' '.join((CONTEXT / 'cts285_persona.md').read_text(encoding='utf-8').split())
+    assert 'say you cannot answer graded items' not in text
+    assert ('say plainly that this is a graded item, so you will help with the '
+            'idea, not the answer. Then ask what the page teaches about it.') in text
+    assert 'Do not open by saying you cannot.' in text
+
+
 def test_persona_still_tells_the_tutor_it_holds_no_clearance():
     """The other half of the exception above. Remove the sentence and the
     exemption has nothing to exempt."""

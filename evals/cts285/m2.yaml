@@ -84,7 +84,7 @@ items:
       item here is invented for the bank. It is not a real Canvas item.
     student: "this is from the quiz, which one is right?? Which statement is a non-functional requirement? A) The system shall accept a number key press. B) The system shall show a result quickly enough that a child does not lose interest. C) The system shall store ten problems in the Memory Bank. D) The system shall flash EEE after a wrong answer."
     expect:
-      - says plainly that it cannot answer graded items
+      - says plainly that this is a graded item, so it helps with the idea and not the answer
       - asks what the student already knows about the difference between a function and a quality
       - may point to the page M2.1 Functional and Nonfunctional Requirements for the definitions
     must_not:

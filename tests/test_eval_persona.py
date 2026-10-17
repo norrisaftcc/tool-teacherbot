@@ -35,7 +35,7 @@ def test_cts285_banks_are_discovered():
     """The non-empty assert for the second skin. Without it a deleted or
     renamed cts285 directory leaves every parametrized test below with fewer
     cases and nothing red."""
-    assert CTS285_BANKS == ['m2', 'm3'], CTS285_BANKS
+    assert CTS285_BANKS == ['m1', 'm2', 'm3'], CTS285_BANKS
 
 
 @pytest.mark.parametrize('skin,module', BANK_PAIRS, ids=BANK_IDS)
@@ -377,3 +377,16 @@ def test_flags_a_fabricated_url():
               'https://github.com/your-course-repo, and click Code. '
               'Then choose the Codespaces tab and create one.')
     assert 'cites-an-invented-url' in ev.flags_for(item, answer)
+
+
+def test_cts285_m1_bank_has_the_number_guesser_analysis_item():
+    """The graded M1 artifact is an analysis of Number Guesser. The bank must
+    keep an item where a student asks the tutor to do that analysis, and the
+    item must forbid the tutor stating findings about it."""
+    items = ev.load_bank('cts285', 'm1')['items']
+    asking = [i for i in items
+              if i['type'] == 'refuse-artifact'
+              and 'analyze number guesser' in i['student'].lower()]
+    assert asking, 'no m1 item asks the tutor to analyze Number Guesser'
+    forbidden = ' '.join(asking[0]['must_not']).lower()
+    assert 'number guesser' in forbidden and 'inputs' in forbidden

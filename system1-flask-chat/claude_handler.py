@@ -1,6 +1,9 @@
+import logging
 import os
 from collections.abc import Generator
 from anthropic import Anthropic
+
+logger = logging.getLogger(__name__)
 
 client = Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
 
@@ -9,6 +12,10 @@ client = Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
 # a stale client holding the old one. The module-level `client` above is
 # still the default and the seam the tests patch.
 _skin_clients: dict[tuple[str, str], Anthropic] = {}
+
+# Env var names already warned about, so a blank per-skin key logs once per
+# process and not once per student message.
+_warned_blank_key_envs: set[str] = set()
 
 
 def _client_for(api_key_env: str | None):
@@ -25,6 +32,13 @@ def _client_for(api_key_env: str | None):
         return client
     key = (os.getenv(api_key_env) or '').strip()
     if not key:
+        # Deliberate fallback (see above), but a silent one: a skin meant to
+        # bill its own key would spend the shared one and nothing would say so.
+        if api_key_env not in _warned_blank_key_envs:
+            _warned_blank_key_envs.add(api_key_env)
+            logger.warning(
+                'api_key_env %s is unset or blank; falling back to the shared '
+                'Anthropic key for this skin.', api_key_env)
         return client
     cache_key = (api_key_env, key)
     if cache_key not in _skin_clients:
@@ -36,6 +50,13 @@ def _client_for(api_key_env: str | None):
 # Without it the stream path ends with no text and the page shows an empty
 # bubble, which reads as a crash. Out of character on purpose.
 REFUSAL_TEXT = "I can't help with that one. Ask your instructor."
+
+# What a student sees when the model spends the whole output ceiling and
+# produces no text (stop_reason == 'max_tokens'). Haiku 5.5 thinks by default
+# and thinking counts against max_tokens, so a response can end inside the
+# thinking block. Without a line the page shows an empty bubble. A partial
+# answer that did reach the student is left alone, not overwritten.
+MAX_TOKENS_TEXT = 'That answer ran too long. Ask a narrower question.'
 
 _RESERVED_KWARGS = frozenset({'model', 'max_tokens', 'system', 'messages', 'stream'})
 
@@ -237,7 +258,12 @@ def get_claude_response_full(
         raise RuntimeError(f'Claude API error: {e}') from e
 
     stop_reason = getattr(response, 'stop_reason', None)
-    text = REFUSAL_TEXT if stop_reason == 'refusal' else _response_text(response)
+    if stop_reason == 'refusal':
+        text = REFUSAL_TEXT
+    else:
+        text = _response_text(response)
+        if stop_reason == 'max_tokens' and not text.strip():
+            text = MAX_TOKENS_TEXT
     return text, _usage_total(response.usage), stop_reason
 
 
@@ -257,6 +283,7 @@ def stream_claude_response(
 
     Yields (text_chunk, 0) for each text delta, then ('' , total_tokens) once at the end.
     A refusal yields REFUSAL_TEXT as a final text chunk before the totals.
+    A max_tokens stop with no text streamed yields MAX_TOKENS_TEXT the same way.
     Raises RuntimeError on API failure.
     """
     messages = history + [{'role': 'user', 'content': user_message}]
@@ -272,9 +299,12 @@ def stream_claude_response(
                 emitted = emitted or bool(text)
                 yield text, 0
             final = stream.get_final_message()
-            if getattr(final, 'stop_reason', None) == 'refusal':
+            stop_reason = getattr(final, 'stop_reason', None)
+            if stop_reason == 'refusal':
                 # Separate from any partial answer already on screen.
                 yield ('\n\n' if emitted else '') + REFUSAL_TEXT, 0
+            elif stop_reason == 'max_tokens' and not emitted:
+                yield MAX_TOKENS_TEXT, 0
             yield '', _usage_total(final.usage)
     except Exception as e:
         raise RuntimeError(f'Claude API error: {e}') from e
