@@ -408,6 +408,67 @@ def test_over_long_message_is_a_400_before_any_api_call(client, anthropic_client
     anthropic_client.messages.stream.assert_not_called()
 
 
+@pytest.mark.parametrize('path', ['/cts285/api/chat', '/cts285/api/chat/stream'])
+@pytest.mark.parametrize('role', ['user', 'assistant'])
+def test_over_long_history_item_is_a_400_before_any_api_call(
+        client, anthropic_client, path, role):
+    """``max_message_chars`` used to bound only ``message``. The same text
+    sent inside ``history`` reached the model unbounded."""
+    _login(client)
+    history = _history(4)
+    history[1 if role == 'assistant' else 2]['content'] = 'x' * 6001
+    r = client.post(path, json={'message': 'now', 'history': history})
+    assert r.status_code == 400
+    assert '6,000' in r.get_json()['error']
+    anthropic_client.messages.create.assert_not_called()
+    anthropic_client.messages.stream.assert_not_called()
+
+
+@pytest.mark.parametrize('path', ['/cts285/api/chat', '/cts285/api/chat/stream'])
+def test_history_items_at_the_limit_are_accepted(client, anthropic_client, path):
+    stream_client = _stream_client(['ok'], _message([_text_block('ok')]))
+    history = [{'role': 'user' if i % 2 == 0 else 'assistant', 'content': 'x' * 6000}
+               for i in range(10)]
+    with patch('claude_handler.client', stream_client if 'stream' in path else anthropic_client):
+        _login(client)
+        r = client.post(path, json={'message': 'now', 'history': history})
+    assert r.status_code == 200
+
+
+def test_an_over_long_item_outside_the_kept_window_is_dropped_not_rejected(
+        client, anthropic_client):
+    """The bound applies to what would be sent. An item the clamp already
+    discards never reaches the model, so it is not a reason to refuse."""
+    _login(client)
+    history = _history(14)
+    history[0]['content'] = 'x' * 6001
+    r = client.post('/cts285/api/chat', json={'message': 'now', 'history': history})
+    assert r.status_code == 200
+    sent = anthropic_client.messages.create.call_args.kwargs['messages']
+    assert all(len(m['content']) < 6001 for m in sent)
+
+
+def test_history_item_size_is_not_bounded_for_skins_that_declare_no_cap(
+        client, anthropic_client):
+    from auth import SKINS
+    client.post('/csc134/login', data={'password': SKINS['csc134']['password']})
+    history = [{'role': 'user', 'content': 'x' * 6001}]
+    r = client.post('/csc134/api/chat', json={'message': 'hi', 'history': history})
+    assert r.status_code == 200
+
+
+def test_a_body_over_the_transport_ceiling_is_a_413_before_any_api_call(
+        client, anthropic_client):
+    """The per-item check cannot run on a body Flask has not parsed. A 413,
+    not a 400, shows the ceiling fired and not the item check."""
+    _login(client)
+    body = json.dumps({'message': 'now', 'history': [
+        {'role': 'user', 'content': 'x' * (3 * 1024 * 1024)}]})
+    r = client.post('/cts285/api/chat', data=body, content_type='application/json')
+    assert r.status_code == 413
+    anthropic_client.messages.create.assert_not_called()
+
+
 def test_message_at_the_limit_is_accepted(client, anthropic_client):
     _login(client)
     r = client.post('/cts285/api/chat', json={'message': 'x' * 6000, 'history': []})

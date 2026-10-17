@@ -63,6 +63,14 @@ def create_app(test_config=None):
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['ADMIN_PASSWORD'] = os.getenv('ADMIN_PASSWORD')
+    # A transport ceiling, not the cost control (that is the per-skin
+    # `max_message_chars` check in routes.py). Without it Flask reads any
+    # body size before a route can refuse it. 2 MiB clears the largest
+    # request a skin can legitimately send (cts285: 11 items of 6,000
+    # characters is under 0.5 MiB even with every character escaped) and
+    # is above what an unbounded csc114/csc134 conversation reaches within
+    # a 200k-token context. Over it, Flask answers 413 before any handler.
+    app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024
 
     if test_config:
         app.config.update(test_config)
