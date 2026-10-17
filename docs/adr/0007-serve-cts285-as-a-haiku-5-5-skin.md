@@ -62,7 +62,7 @@ skins carry none of them. **Omission of a key means "behave exactly as today".**
 | `username` | `CTS285_USERNAME`, default `CTS285` | The course lead asked for a username and a password. `authenticate_skin(slug, password, username=None)` checks the username only when the skin declares one. It ignores case and surrounding whitespace. The password is exact. Both use `hmac.compare_digest` and both always run. |
 | `password` | `CTS285_PASSWORD`, default `algorithm` | Same reason as `CSC134_PASSCODE`: this repository is public, so rotation is a dashboard edit. `or`, not a `getenv` default, because a blank dashboard field sets the variable to `''`. |
 | `model` | `claude-haiku-5-5` | The course lead's decision. |
-| `chrome` | `neutral` | Templates branch on it: no classification banner, clearance chip or "The Algorithm is watching", and a plain title. The root picker is unchanged, and students get the direct URL `/cts285/`. |
+| `chrome` | `neutral` | Templates branch on it: no classification banner, clearance chip or "The Algorithm is watching", and a plain title. The root picker does not list a neutral skin (it is AlgoCratic-framed), sign-out returns to the skin's own sign-in page, and students get the direct URL `/cts285/`. |
 | `max_tokens` | 4096 | Thinking counts against `max_tokens`, so the answer needs room beside it. |
 | `request_options` | `{'output_config': {'effort': 'low'}}` | Effort is the documented lever for chat on Haiku 5.5. It is **not sent to a skin that does not declare it**, because Haiku 4.5 (csc134) rejects it. `_request_kwargs` raises on a key that collides with one the handler owns. |
 | `history_messages` | 10 | Uncached input is the only part that grows per message. |
